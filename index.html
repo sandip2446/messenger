@@ -448,6 +448,7 @@
         let wakeLock = null;
         let currentFacingMode = 'user'; 
         let onlineUsers = {}; 
+        let connections = {}; // Store active connections to prevent GC
 
         // Viewport
         function setVh() {
@@ -515,6 +516,8 @@
             });
             peer.on('call', handleIncomingCall);
             peer.on('connection', conn => {
+                // Handle incoming connection for chat
+                connections[conn.peer] = conn; // Store it
                 setupDataConnection(conn);
             });
         }
@@ -598,10 +601,17 @@
 
             loadChatHistory(partnerUsername);
 
+            // Connect if online
             if(isOnline && partnerPeerId) {
-                if(dataConnection) dataConnection.close();
-                dataConnection = peer.connect(partnerPeerId, { metadata: { callerName: myName, callerUsername: myUsername } });
-                setupDataConnection(dataConnection);
+                // reuse existing connection if open
+                if(dataConnection && dataConnection.peer === partnerPeerId && dataConnection.open) {
+                    // already connected
+                } else {
+                    if(dataConnection) dataConnection.close();
+                    dataConnection = peer.connect(partnerPeerId, { metadata: { callerName: myName, callerUsername: myUsername } });
+                    connections[partnerPeerId] = dataConnection;
+                    setupDataConnection(dataConnection);
+                }
             } else {
                 dataConnection = null;
             }
@@ -656,7 +666,20 @@
 
             const msgData = { type: 'text', content: text, sender: myUsername, timestamp: Date.now() };
 
-            if(dataConnection && dataConnection.open) dataConnection.send(msgData);
+            if(dataConnection && dataConnection.open) {
+                dataConnection.send(msgData);
+            } else {
+                // If not connected, try to reconnect or alert
+                if(currentChatPartner.id && peer) {
+                     // Try reconnecting in background
+                     dataConnection = peer.connect(currentChatPartner.id, { metadata: { callerName: myName, callerUsername: myUsername } });
+                     connections[currentChatPartner.id] = dataConnection;
+                     setupDataConnection(dataConnection);
+                     // Alert user
+                     // alert("Reconnecting... click send again shortly.");
+                }
+            }
+
             saveMessage(msgData, currentChatPartner.username);
             renderMessage(msgData, 'me');
             input.value = '';
@@ -680,6 +703,9 @@
         }
 
         function setupDataConnection(conn) {
+            conn.on('open', () => {
+                console.log("Connection opened with", conn.peer);
+            });
             conn.on('data', data => {
                 const senderUser = data.sender || (conn.metadata ? conn.metadata.callerUsername : 'unknown');
                 saveMessage(data, senderUser);
@@ -687,6 +713,7 @@
                     renderMessage(data, 'them');
                 }
             });
+            conn.on('error', err => console.error("Conn error", err));
         }
 
         function renderMessage(data, type) {
