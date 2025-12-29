@@ -939,7 +939,7 @@
             if (peer && !peer.disconnected && peer.id === cleanId) return;
             if (peer) peer.destroy();
             peer = new Peer(cleanId, { debug: 1, config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} });
-            peer.on('open', id => { peerId = id; });
+            peer.on('open', id => { peerId = id; console.log("Peer Connected:", id); });
             peer.on('call', handleIncomingCall);
             peer.on('error', err => { if (err.type === 'disconnected') peer.reconnect(); });
             peer.on('disconnected', () => { peer.reconnect(); });
@@ -950,28 +950,41 @@
             if (!peer || peer.disconnected) { peer.reconnect(); await new Promise(r => setTimeout(r, 1000)); }
             
             const isVideo = type === 'video';
-            setupCallUI(type, currentChatUser); // Setup UI first
+            // Optimistically setup UI
+            setupCallUI(type, currentChatUser); 
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+                
+                // Show Local Video
+                const localVid = document.getElementById('local-video');
                 if(isVideo) {
-                    const localVid = document.getElementById('local-video');
                     localVid.srcObject = localStream;
-                    localVid.play();
+                    localVid.style.display = 'block';
+                    await localVid.play();
+                } else {
+                    localVid.style.display = 'none';
                 }
 
                 document.getElementById('call-status').innerText = "Calling...";
                 const targetId = currentChatUser.username.replace(/[^a-z0-9]/g, '_');
+                
                 const call = peer.call(targetId, localStream, {
                     metadata: { type: type, callerName: currentUser.name, callerAvatar: currentUser.avatar }
                 });
+                
                 handleCallEvents(call, type);
-            } catch(e) { showToast("Error: " + e.message); endCall(); }
+            } catch(e) { 
+                showToast("Error starting call: " + e.message); 
+                endCall(); 
+            }
         }
 
         function handleIncomingCall(call) {
             incomingCallRequest = call;
-            const meta = call.metadata || { callerName: 'Unknown', callerAvatar: null };
+            console.log("Incoming call detected");
+            const meta = call.metadata || { callerName: 'Unknown', callerAvatar: null, type: 'audio' };
+            
             document.getElementById('inc-name').innerText = meta.callerName;
             document.getElementById('inc-avatar').innerHTML = meta.callerAvatar ? `<img src="${meta.callerAvatar}">` : (meta.callerName[0] || '?');
             document.getElementById('incoming-call-modal').style.display = 'flex';
@@ -980,60 +993,86 @@
         async function acceptCall() {
             if (!incomingCallRequest) return;
             document.getElementById('incoming-call-modal').style.display = 'none';
+            
             const meta = incomingCallRequest.metadata || { type: 'audio' };
-            const type = meta.type;
+            const type = meta.type; // 'audio' or 'video'
             const partner = { name: meta.callerName || 'Unknown', avatar: meta.callerAvatar };
             
             setupCallUI(type, partner);
 
             try {
+                // Request media matching the call type
                 const isVideo = type === 'video';
                 localStream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+                
+                const localVid = document.getElementById('local-video');
                 if(isVideo) {
-                     const localVid = document.getElementById('local-video');
                      localVid.srcObject = localStream;
-                     localVid.play();
+                     localVid.style.display = 'block';
+                     await localVid.play();
+                } else {
+                     localVid.style.display = 'none';
                 }
+
                 document.getElementById('call-status').innerText = "Connected";
+                
+                // Answer with our stream
                 incomingCallRequest.answer(localStream);
                 handleCallEvents(incomingCallRequest, type);
-            } catch(e) { showToast("Error answering: " + e.message); rejectCall(); }
+            } catch(e) { 
+                showToast("Error answering: " + e.message); 
+                rejectCall(); 
+            }
         }
 
         function rejectCall() { if (incomingCallRequest) incomingCallRequest.close(); document.getElementById('incoming-call-modal').style.display = 'none'; }
 
         function setupCallUI(type, partner) {
             const ui = document.getElementById('call-interface');
-            ui.classList.remove('minimized'); // Always start full
+            ui.classList.remove('minimized'); 
             ui.style.display = 'flex';
             
             document.getElementById('call-partner-name').innerText = partner.name;
             
-            // Handle Audio vs Video Mode
+            // Initial UI state based on requested type
             if (type === 'audio') {
                 ui.classList.add('audio-mode');
                 document.getElementById('call-audio-avatar').innerHTML = partner.avatar ? `<img src="${partner.avatar}">` : partner.name[0];
-                document.getElementById('local-video').style.display = 'none'; // Hide local preview in audio
             } else {
                 ui.classList.remove('audio-mode');
-                document.getElementById('local-video').style.display = 'block';
             }
+            
             // Reset Speaker Icon
             isSpeakerOn = false;
             document.getElementById('btn-speaker').innerHTML = '<i class="fas fa-phone-alt"></i>'; 
         }
 
-        function handleCallEvents(call, type) {
+        function handleCallEvents(call, initialType) {
             currentCall = call;
+            
             call.on('stream', remoteStream => {
+                console.log("Received remote stream");
                 const remoteVid = document.getElementById('remote-video');
-                // Only attach stream if video, or if audio (but video element hidden by CSS)
                 remoteVid.srcObject = remoteStream;
-                remoteVid.onloadedmetadata = () => { remoteVid.play().catch(console.error); };
+                
+                // Auto-detect video tracks to fix UI if metadata was wrong
+                if (remoteStream.getVideoTracks().length > 0) {
+                    console.log("Video track detected, forcing video UI");
+                    document.getElementById('call-interface').classList.remove('audio-mode');
+                    document.getElementById('local-video').style.display = 'block';
+                }
+
+                remoteVid.onloadedmetadata = () => { 
+                    remoteVid.play().catch(e => console.error("Remote play error:", e)); 
+                };
                 document.getElementById('call-status').innerText = "Connected";
             });
+
             call.on('close', endCallUI);
-            call.on('error', endCallUI);
+            call.on('error', e => {
+                console.error("Call error:", e);
+                endCallUI();
+            });
         }
 
         function endCall() { if (currentCall) currentCall.close(); endCallUI(); }
