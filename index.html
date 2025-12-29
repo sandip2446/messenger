@@ -152,7 +152,7 @@
         .control-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
         .control-btn.end-call { background: var(--red); width: 60px; height: 60px; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(255,68,68,0.4); }
 
-        /* --- LOGIN OVERLAY --- */
+        /* --- LOGIN OVERLAY & TABS --- */
         #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -166,23 +166,51 @@
         }
         .login-card {
             background: var(--surface);
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
             width: 100%;
-            max-width: 400px;
+            max-width: 350px;
             text-align: center;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             box-sizing: border-box;
         }
+        
+        /* Tabs */
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--gray);
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            cursor: pointer;
+            color: #888;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .auth-tab.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+        
+        .login-icon { font-size: 2.5rem; color: var(--primary); margin-bottom: 15px; }
+
         .login-input {
             width: 100%; padding: 15px; background: var(--gray); border: 2px solid transparent;
-            border-radius: 12px; color: white; font-size: 16px; margin-bottom: 20px;
-            box-sizing: border-box; outline: none; text-align: center;
+            border-radius: 12px; color: white; font-size: 16px; margin-bottom: 15px;
+            box-sizing: border-box; outline: none; text-align: left;
         }
         .login-input:focus { border-color: var(--primary); }
+        
         .login-btn {
-            background: var(--primary); color: white; width: 100%; padding: 16px; border: none;
+            background: var(--primary); color: white; width: 100%; padding: 15px; border: none;
             border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        #auth-error {
+            color: #ff4444; margin-top: 15px; font-size: 0.9rem; display: none;
         }
 
         /* --- SIDEBAR --- */
@@ -312,13 +340,35 @@
 </head>
 <body>
 
-    <!-- LOGIN -->
+    <!-- AUTH OVERLAY -->
     <div id="login-overlay">
         <div class="login-card">
-            <h2 style="margin-top:0;">Join Messenger</h2>
-            <input type="text" id="login-name" class="login-input" placeholder="Your Name" maxlength="20">
-            <button class="login-btn" onclick="loginAndStart()">Enter & Join</button>
-            <div class="permission-note"><i class="fas fa-lock"></i> Requires Camera & Mic</div>
+            <div class="login-icon"><i class="fas fa-comment-dots"></i></div>
+            
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchAuthTab('login')">Login</div>
+                <div class="auth-tab" onclick="switchAuthTab('register')">Sign Up</div>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-form">
+                <input type="text" id="login-user" class="login-input" placeholder="Username">
+                <input type="password" id="login-pass" class="login-input" placeholder="Password">
+                <button class="login-btn" onclick="performLogin()">Login & Start</button>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="hidden">
+                <input type="text" id="reg-user" class="login-input" placeholder="Choose Username">
+                <input type="password" id="reg-pass" class="login-input" placeholder="Choose Password">
+                <input type="text" id="reg-name" class="login-input" placeholder="Display Name (e.g. John)">
+                <button class="login-btn" onclick="performRegister()">Create Account</button>
+            </div>
+            
+            <div id="auth-error">Error message here</div>
+            <div class="permission-note" style="margin-top:20px; color:#666; font-size:0.8rem;">
+                <i class="fas fa-lock"></i> Account data is saved securely.
+            </div>
         </div>
     </div>
 
@@ -409,13 +459,14 @@
         let peer;
         let myPeerId;
         let myName = "";
+        let myUsername = ""; 
         let localStream;
         let currentCall;
         let dataConnection; 
         let incomingCallRequest = null;
         let audioContext = null; 
         let wakeLock = null;
-        let currentFacingMode = 'user'; // 'user' or 'environment'
+        let currentFacingMode = 'user'; 
 
         // Set Viewport Height
         function setVh() {
@@ -430,16 +481,93 @@
         try { firebase.initializeApp(firebaseConfig); } catch(e) {}
         const db = firebase.database();
 
-        if(localStorage.getItem('messenger_my_name')) {
-            document.getElementById('login-name').value = localStorage.getItem('messenger_my_name');
+        // --- AUTH LOGIC ---
+
+        function switchAuthTab(tab) {
+            const tabs = document.querySelectorAll('.auth-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            const err = document.getElementById('auth-error');
+            err.style.display = 'none';
+
+            if(tab === 'login') {
+                tabs[0].classList.add('active');
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+            } else {
+                tabs[1].classList.add('active');
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+            }
         }
 
-        // --- LOGIN ---
-        function loginAndStart() {
-            const nameInput = document.getElementById('login-name').value.trim();
-            if(nameInput.length < 2) { alert("Enter Name"); return; }
-            myName = nameInput;
-            localStorage.setItem('messenger_my_name', myName);
+        function showAuthError(msg) {
+            const el = document.getElementById('auth-error');
+            el.innerText = msg;
+            el.style.display = 'block';
+        }
+
+        async function performRegister() {
+            const user = document.getElementById('reg-user').value.trim().toLowerCase();
+            const pass = document.getElementById('reg-pass').value;
+            const name = document.getElementById('reg-name').value.trim();
+
+            if(!user || !pass || !name) return showAuthError("All fields required.");
+            if(user.length < 3) return showAuthError("Username too short.");
+
+            // Check if username exists
+            try {
+                const snapshot = await db.ref('accounts/' + user).once('value');
+                if(snapshot.exists()) {
+                    return showAuthError("Username already taken.");
+                }
+
+                // Create account
+                await db.ref('accounts/' + user).set({
+                    password: pass,
+                    name: name,
+                    created: Date.now()
+                });
+
+                // Auto login after creation
+                completeLogin(user, name);
+
+            } catch(e) {
+                console.error(e);
+                showAuthError("Network error. Try again.");
+            }
+        }
+
+        async function performLogin() {
+            const user = document.getElementById('login-user').value.trim().toLowerCase();
+            const pass = document.getElementById('login-pass').value;
+
+            if(!user || !pass) return showAuthError("Please enter credentials.");
+
+            try {
+                const snapshot = await db.ref('accounts/' + user).once('value');
+                if(!snapshot.exists()) {
+                    return showAuthError("User not found.");
+                }
+
+                const data = snapshot.val();
+                if(data.password !== pass) {
+                    return showAuthError("Incorrect password.");
+                }
+
+                completeLogin(user, data.name);
+
+            } catch(e) {
+                console.error(e);
+                showAuthError("Login failed. Check connection.");
+            }
+        }
+
+        function completeLogin(user, name) {
+            myName = name;
+            myUsername = user;
             
             // Start Camera
             startCamera('user').then(() => {
@@ -480,32 +608,26 @@
             }
         }
 
-        // --- SWITCH CAMERA (FIXED AUDIO) ---
+        // --- SWITCH CAMERA ---
         async function switchCamera() {
             if (!localStream) return;
             currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
 
             try {
-                // 1. Get ONLY new video track (don't request audio to avoid conflict/stop)
                 const videoStream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: currentFacingMode }
                 });
                 const newVideoTrack = videoStream.getVideoTracks()[0];
-
-                // 2. Stop old video track
                 const oldVideoTrack = localStream.getVideoTracks()[0];
                 if(oldVideoTrack) oldVideoTrack.stop();
 
-                // 3. Replace in localStream (keeps audio alive)
                 localStream.removeTrack(oldVideoTrack);
                 localStream.addTrack(newVideoTrack);
                 
-                // 4. Update UI
                 const vid = document.getElementById('localVideo');
                 if(currentFacingMode === 'user') vid.classList.add('mirrored');
                 else vid.classList.remove('mirrored');
 
-                // 5. Replace in WebRTC Connection
                 if (currentCall && currentCall.peerConnection) {
                     const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
                     if (sender) sender.replaceTrack(newVideoTrack);
@@ -532,7 +654,7 @@
         function updateDirectory() {
             if(!myName || !myPeerId) return;
             const userRef = db.ref('users/' + myPeerId);
-            userRef.set({ name: myName, lastSeen: Date.now() });
+            userRef.set({ name: myName, username: myUsername, lastSeen: Date.now() });
             userRef.onDisconnect().remove();
         }
 
@@ -541,7 +663,7 @@
             db.ref('users').on('value', snapshot => {
                 const users = snapshot.val();
                 listContainer.innerHTML = '';
-                if(!users) { listContainer.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">No users.</div>'; return; }
+                if(!users) { listContainer.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">No users online.</div>'; return; }
                 for (const [peerId, userData] of Object.entries(users)) {
                     if(peerId === myPeerId) continue;
                     const el = document.createElement('div');
@@ -559,7 +681,6 @@
 
         // --- CALLS ---
         async function initiateCall(destPeerId, destName) {
-            // Ensure stream exists
             if(!localStream || localStream.active === false) await startCamera(currentFacingMode);
             
             const meta = { callerName: myName };
@@ -603,7 +724,6 @@
         function setupDataConnection(conn) {
             dataConnection = conn;
             conn.on('data', data => {
-                // If it's a string, it's legacy text. If object, check type.
                 if (typeof data === 'string') {
                      addMessageToUI({ type: 'text', content: data }, 'them');
                 } else {
@@ -615,14 +735,10 @@
         // --- UI STATES ---
         function enterCallMode() {
             document.body.classList.add('call-active');
-            
-            // Close sidebar
             document.getElementById('sidebar').classList.add('collapsed');
             document.getElementById('mobile-menu-btn').classList.remove('hidden');
-            
             document.getElementById('controls-bar').classList.remove('hidden');
             document.getElementById('chat-container').classList.remove('hidden');
-            
             requestWakeLock();
         }
 
@@ -631,7 +747,6 @@
             currentCall = null;
             dataConnection = null;
             releaseWakeLock();
-            
             document.getElementById('remoteVideo').srcObject = null;
             document.getElementById('controls-bar').classList.add('hidden');
             document.getElementById('chat-container').classList.add('hidden');
@@ -651,32 +766,24 @@
         }
 
         // --- FILE HANDLING & UTILS ---
-
         function handleFileSelect(input) {
             const file = input.files[0];
             if (!file || !dataConnection) return;
-            
-            if (file.size > 10 * 1024 * 1024) { // 10MB limit check
-                alert("File too large. Max 10MB.");
-                return;
-            }
+            if (file.size > 10 * 1024 * 1024) { alert("File too large. Max 10MB."); return; }
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                // We send the array buffer directly. 
-                // Wrapping in object for metadata.
                 const payload = {
                     type: 'file',
                     fileName: file.name,
                     fileType: file.type,
-                    fileData: e.target.result // ArrayBuffer
+                    fileData: e.target.result 
                 };
-                
                 dataConnection.send(payload);
                 addMessageToUI(payload, 'me');
             };
             reader.readAsArrayBuffer(file);
-            input.value = ''; // Reset
+            input.value = ''; 
         }
 
         function sendMsg() {
@@ -696,10 +803,8 @@
             div.className = `msg ${sender}`;
 
             if (data.type === 'file') {
-                // Convert ArrayBuffer back to Blob for local display
                 const blob = new Blob([data.fileData], { type: data.fileType });
                 const url = URL.createObjectURL(blob);
-                
                 if (data.fileType.startsWith('image/')) {
                     div.innerHTML = `<img src="${url}" alt="Image">`;
                 } else if (data.fileType.startsWith('video/')) {
@@ -707,21 +812,15 @@
                 } else {
                     div.innerHTML = `<i class="fas fa-file"></i> ${data.fileName}`;
                 }
-                
-                // Add Download Button
                 const downloadLink = document.createElement('a');
                 downloadLink.href = url;
                 downloadLink.download = data.fileName;
                 downloadLink.className = 'download-link';
                 downloadLink.innerHTML = `<i class="fas fa-download"></i> Download`;
-                
                 div.appendChild(downloadLink);
-
             } else {
-                // Text Message
                 div.innerText = data.content;
             }
-
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
@@ -743,7 +842,6 @@
         function toggleMute() { if(localStream) localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; }
         function toggleCameraVideo() { if(localStream) localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; }
         
-        // --- WAKE LOCK & GESTURES ---
         async function requestWakeLock() { if('wakeLock' in navigator) try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
         function releaseWakeLock() { if(wakeLock) wakeLock.release().then(()=>wakeLock=null); }
         
@@ -754,10 +852,10 @@
                 touchEndX = e.changedTouches[0].screenX;
                 if(window.innerWidth > 768) return;
                 const sb = document.getElementById('sidebar');
-                if(touchEndX > touchStartX + 75 && touchStartX < 50) { // Swipe Right
+                if(touchEndX > touchStartX + 75 && touchStartX < 50) { 
                     sb.classList.remove('collapsed'); document.getElementById('mobile-menu-btn').classList.add('hidden');
                 }
-                if(touchEndX < touchStartX - 75 && !sb.classList.contains('collapsed')) toggleSidebar(); // Swipe Left
+                if(touchEndX < touchStartX - 75 && !sb.classList.contains('collapsed')) toggleSidebar(); 
             }, {passive: true});
         }
 
