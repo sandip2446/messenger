@@ -83,6 +83,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: 0.2s;
+            margin-top: 10px;
         }
         .login-btn:hover { background: #0073e6; }
 
@@ -92,7 +93,7 @@
             margin-top: 15px;
         }
 
-        /* --- SIDEBAR (Friends List) --- */
+        /* --- SIDEBAR (List) --- */
         #sidebar {
             width: 300px;
             background: var(--surface);
@@ -105,111 +106,98 @@
         }
 
         .header {
-            padding: 15px;
+            padding: 20px;
             border-bottom: 1px solid var(--gray);
             display: flex;
             flex-direction: column;
             gap: 15px;
+            background: rgba(0,0,0,0.2);
         }
 
         .my-profile {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-weight: bold;
+            gap: 12px;
         }
 
-        .my-number-display {
-            font-size: 1.1rem;
-            color: white;
-        }
-
-        .add-friend-box {
+        .my-info {
             display: flex;
-            gap: 5px;
+            flex-direction: column;
         }
 
-        input.search-input {
-            background: var(--gray);
-            border: none;
-            padding: 10px;
-            border-radius: 20px;
-            color: white;
+        .my-name-display { font-weight: bold; font-size: 1.1rem; }
+
+        .section-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: #888;
+            padding: 15px 20px 5px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        #online-list {
             flex: 1;
-            outline: none;
+            overflow-y: auto;
+            padding: 10px;
         }
 
-        .btn-small {
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 10px;
             cursor: pointer;
+            transition: 0.2s;
+            gap: 12px;
+            margin-bottom: 5px;
+            background: rgba(255,255,255,0.03);
+        }
+
+        .user-item:hover { background: var(--gray); }
+
+        .avatar {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, #0084ff, #00c6ff);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--green);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            border: 2px solid var(--surface);
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .user-info { flex: 1; min-width: 0; }
+        .user-name { font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .call-icon {
+            width: 35px;
+            height: 35px;
+            background: rgba(0, 132, 255, 0.15);
+            color: var(--primary);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: 0.2s;
         }
         
-        .btn-small:hover { background: #0073e6; }
-
-        #friends-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-
-        .friend-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.2s;
-            gap: 10px;
-        }
-
-        .friend-item:hover { background: var(--gray); }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            background: var(--gray);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            position: relative;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            background: gray;
-            border-radius: 50%;
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            border: 2px solid var(--surface);
-        }
-
-        .status-dot.online { background: var(--green); }
-
-        .friend-info { flex: 1; }
-        .friend-name { font-weight: 600; font-size: 0.95rem; }
-        .friend-id { font-size: 0.75rem; color: #b0b3b8; }
-
-        .call-btn {
-            color: var(--primary);
-            background: rgba(0, 132, 255, 0.1);
-            padding: 8px;
-            border-radius: 50%;
-            transition: 0.2s;
-        }
-        .call-btn:hover { background: var(--primary); color: white; }
+        .user-item:hover .call-icon { background: var(--primary); color: white; }
 
         /* --- MAIN AREA (Video & Chat) --- */
         #main-area {
@@ -242,13 +230,14 @@
         /* --- CHAT OVERLAY --- */
         #chat-container {
             position: absolute;
-            bottom: 80px;
+            bottom: 90px;
             right: 20px;
-            width: 300px;
-            max-height: 40%;
+            width: 320px;
+            max-height: 50%;
             display: flex;
             flex-direction: column;
-            pointer-events: none; /* Let clicks pass through if empty */
+            pointer-events: none;
+            z-index: 50;
         }
 
         #messages {
@@ -259,15 +248,19 @@
             gap: 8px;
             padding-bottom: 10px;
             pointer-events: auto;
+            /* Scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.3) transparent;
         }
 
         .msg {
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 18px;
-            max-width: 80%;
-            font-size: 0.9rem;
+            max-width: 85%;
+            font-size: 0.95rem;
             word-wrap: break-word;
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .msg.me {
@@ -288,24 +281,25 @@
             display: flex;
             gap: 10px;
             pointer-events: auto;
-            background: rgba(0,0,0,0.5);
-            padding: 10px;
-            border-radius: 20px;
-            backdrop-filter: blur(5px);
+            background: rgba(40, 40, 40, 0.9);
+            padding: 12px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         #msg-input {
-            background: transparent; border: none; color: white; flex: 1; outline: none;
+            background: transparent; border: none; color: white; flex: 1; outline: none; font-size: 0.95rem;
         }
 
         /* --- CONTROLS BAR --- */
         #controls-bar {
-            height: 70px;
+            height: 80px;
             background: var(--surface);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 20px;
+            gap: 25px;
         }
 
         .control-btn {
@@ -320,9 +314,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: 0.2s;
         }
-        .control-btn.end-call { background: var(--red); width: 60px; height: 60px; }
-        .control-btn:hover { filter: brightness(1.2); }
+        .control-btn.end-call { background: var(--red); width: 60px; height: 60px; font-size: 1.5rem; }
+        .control-btn:hover { filter: brightness(1.2); transform: scale(1.05); }
         
         .hidden { display: none !important; }
 
@@ -330,52 +325,57 @@
         #modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(8px);
         }
 
         .modal-card {
             background: var(--surface);
-            padding: 30px;
-            border-radius: 20px;
+            padding: 40px;
+            border-radius: 24px;
             text-align: center;
             width: 90%;
             max-width: 350px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            border: 1px solid var(--gray);
         }
 
         .caller-avatar {
-            width: 80px; height: 80px;
-            background: var(--gray);
+            width: 90px; height: 90px;
+            background: linear-gradient(135deg, #0084ff, #00c6ff);
             border-radius: 50%;
-            margin: 0 auto 15px;
+            margin: 0 auto 20px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 2rem;
+            font-size: 2.5rem;
             animation: pulse 1.5s infinite;
+            color: white;
         }
 
         .modal-actions {
             display: flex;
             justify-content: center;
-            gap: 20px;
-            margin-top: 25px;
+            gap: 30px;
+            margin-top: 30px;
         }
 
         .action-btn {
-            width: 60px; height: 60px;
+            width: 65px; height: 65px;
             border-radius: 50%;
             border: none;
             display: flex; align-items: center; justify-content: center;
             font-size: 1.5rem;
             cursor: pointer;
             color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: 0.2s;
         }
         .btn-accept { background: var(--green); animation: bounce 1s infinite; }
         .btn-decline { background: var(--red); }
+        .action-btn:active { transform: scale(0.9); }
 
         /* --- MOBILE TWEAKS --- */
         @media (max-width: 768px) {
@@ -392,16 +392,17 @@
                 position: absolute;
                 top: 15px; left: 15px;
                 z-index: 50;
-                background: rgba(0,0,0,0.5);
+                background: rgba(0,0,0,0.6);
                 color: white;
                 border: none;
-                padding: 10px;
-                border-radius: 8px;
+                padding: 12px;
+                border-radius: 12px;
+                backdrop-filter: blur(5px);
             }
         }
 
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 132, 255, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(0, 132, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 132, 255, 0); } }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 132, 255, 0.4); } 70% { box-shadow: 0 0 0 20px rgba(0, 132, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 132, 255, 0); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
     </style>
 </head>
 <body>
@@ -409,63 +410,62 @@
     <!-- LOGIN OVERLAY -->
     <div id="login-overlay">
         <div class="login-card">
-            <div class="login-icon"><i class="fas fa-phone-alt"></i></div>
-            <h2 style="margin-top:0;">Messenger Login</h2>
-            <p>Enter your phone number to start receiving calls.</p>
+            <div class="login-icon"><i class="fas fa-video"></i></div>
+            <h2 style="margin-top:0;">Join Messenger</h2>
+            <p style="color:#aaa;">Enter your name to appear in the directory.</p>
             
-            <input type="tel" id="login-phone" class="login-input" placeholder="e.g. 555-1234" maxlength="15">
+            <input type="text" id="login-name" class="login-input" placeholder="Your Name (e.g. John)" maxlength="20">
             
-            <button class="login-btn" onclick="loginAndStart()">Login & Start</button>
+            <button class="login-btn" onclick="loginAndStart()">Enter & Join Online</button>
             
             <div class="permission-note">
-                <i class="fas fa-lock"></i> We will ask for Camera & Mic permission securely.
+                <i class="fas fa-lock"></i> Camera & Mic permission required for calls.
             </div>
         </div>
     </div>
 
-    <!-- SIDEBAR: FRIENDS LIST -->
+    <!-- SIDEBAR: DIRECTORY -->
     <div id="sidebar">
         <div class="header">
             <div class="my-profile">
                 <div class="avatar"><i class="fas fa-user"></i></div>
-                <div class="my-number-display" id="my-number-display">Loading...</div>
-            </div>
-            
-            <div class="add-friend-box">
-                <input id="friend-search-input" class="search-input" placeholder="Enter Friend's Phone #">
-                <button class="btn-small" onclick="addFriendByPhone()"><i class="fas fa-plus"></i></button>
+                <div class="my-info">
+                    <div class="my-name-display" id="my-name-display">Guest</div>
+                </div>
             </div>
         </div>
-        <div id="friends-list">
-            <!-- Friend Items injected here -->
+        
+        <div class="section-title">Online Directory</div>
+        <div id="online-list">
+            <div style="text-align:center; color:#666; padding:20px;">Connecting...</div>
         </div>
     </div>
 
     <!-- MAIN: VIDEO & CHAT -->
     <div id="main-area">
         <button class="toggle-sidebar-btn hidden" id="mobile-menu-btn" onclick="toggleSidebar()">
-            <i class="fas fa-users"></i>
+            <i class="fas fa-bars"></i>
         </button>
 
         <div id="video-grid">
-            <div style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;color:#555;flex-direction:column;gap:10px;" id="placeholder-text">
-                <i class="fas fa-video" style="font-size: 2rem; opacity: 0.5;"></i>
-                <span>Select a friend to call</span>
+            <div style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;color:#555;flex-direction:column;gap:15px;" id="placeholder-text">
+                <i class="fas fa-address-book" style="font-size: 3rem; opacity: 0.3;"></i>
+                <span>Select a user from the directory to call</span>
             </div>
             <video id="localVideo" autoplay muted playsinline class="hidden"></video>
             <video id="remoteVideo" autoplay playsinline class="hidden"></video>
         </div>
 
-        <!-- Chat Overlay (Only visible during call) -->
+        <!-- Chat Overlay -->
         <div id="chat-container" class="hidden">
             <div id="messages"></div>
             <div id="chat-input-area">
                 <input id="msg-input" placeholder="Type a message..." onkeypress="handleEnter(event)">
-                <button class="btn-small" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+                <button class="btn-small" onclick="sendMsg()" style="background:var(--primary); color:white; border:none; width:35px; height:35px; border-radius:50%; cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
 
-        <!-- Controls (Only visible during call) -->
+        <!-- Controls -->
         <div id="controls-bar" class="hidden">
             <button class="control-btn" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
             <button class="control-btn end-call" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
@@ -477,8 +477,8 @@
     <div id="modal-overlay" class="hidden">
         <div class="modal-card">
             <div class="caller-avatar"><i class="fas fa-user"></i></div>
-            <h3>Incoming Call...</h3>
-            <p id="caller-id-display">Unknown</p>
+            <h3 style="margin-bottom:5px;">Incoming Call</h3>
+            <p id="caller-id-display" style="color:#bbb; font-size:1.1rem; margin-top:0;">Unknown</p>
             <div class="modal-actions">
                 <button class="action-btn btn-accept" onclick="answerCall()"><i class="fas fa-phone"></i></button>
                 <button class="action-btn btn-decline" onclick="rejectCall()"><i class="fas fa-times"></i></button>
@@ -505,12 +505,11 @@
         
         // --- GLOBALS ---
         let peer;
-        let myPeerId; // The random tech ID
-        let myPhone = ""; // The user's phone number
+        let myPeerId;
+        let myName = "";
         let localStream;
         let currentCall;
         let dataConnection; 
-        let friends = JSON.parse(localStorage.getItem('messenger_friends_v2') || '[]');
         let incomingCallRequest = null;
         let audioContext = null; 
 
@@ -526,172 +525,135 @@
         try { firebase.initializeApp(firebaseConfig); } catch(e) {}
         const db = firebase.database();
 
-        // Pre-fill phone if saved
-        const savedPhone = localStorage.getItem('messenger_my_phone');
-        if(savedPhone) document.getElementById('login-phone').value = savedPhone;
+        // Load saved creds
+        if(localStorage.getItem('messenger_my_name')) {
+            document.getElementById('login-name').value = localStorage.getItem('messenger_my_name');
+        }
 
-        // --- LOGIN LOGIC ---
+        // --- LOGIN & START ---
         function loginAndStart() {
-            const input = document.getElementById('login-phone').value.trim();
-            // Basic sanitization: remove spaces, dashes, parens
-            const cleanPhone = input.replace(/[^0-9+]/g, '');
-
-            if(cleanPhone.length < 3) {
-                alert("Please enter a valid phone number.");
-                return;
-            }
-
-            myPhone = cleanPhone;
-            localStorage.setItem('messenger_my_phone', myPhone);
+            const nameInput = document.getElementById('login-name').value.trim();
             
-            // Ask for permissions NOW
+            if(nameInput.length < 2) { alert("Please enter your Name."); return; }
+
+            myName = nameInput;
+            
+            // Save to local storage
+            localStorage.setItem('messenger_my_name', myName);
+            
+            // Ask for permissions
             navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then(stream => {
-                    // Permission Granted!
                     localStream = stream;
                     
-                    // Stop tracks immediately (we only wanted permission, we'll restart stream on call)
-                    // Actually, keeping it open is faster for the UI preview. Let's keep it but not show it yet.
-                    
-                    // Hide Login
+                    // UI Updates
                     document.getElementById('login-overlay').style.display = 'none';
-                    document.getElementById('my-number-display').innerText = myPhone;
+                    document.getElementById('my-name-display').innerText = myName;
                     
                     // Start PeerJS
                     initPeer();
                 })
                 .catch(err => {
                     console.error(err);
-                    alert("Permission Denied: We cannot start the app without Camera/Mic access.");
+                    alert("Camera/Mic Permission Denied. You cannot use this app without it.");
                 });
         }
 
         function initPeer() {
-            peer = new Peer(); // Get random secure ID
+            peer = new Peer(); 
 
             peer.on('open', id => {
                 myPeerId = id;
-                console.log("Connected to network with ID:", id);
+                console.log("My Peer ID:", id);
                 
-                // Map Phone Number -> Random Peer ID in Firebase
+                // Add myself to the Public Directory
                 updateDirectory();
-                renderFriends();
+                
+                // Listen for other users
+                initOnlineUsersListener();
             });
 
             peer.on('call', handleIncomingCall);
             peer.on('connection', conn => setupDataConnection(conn));
-            peer.on('error', err => console.error(err));
+            peer.on('error', err => console.error("PeerJS Error:", err));
         }
 
         function updateDirectory() {
-            if(!myPhone || !myPeerId) return;
+            if(!myName || !myPeerId) return;
             
-            // users/{phoneNumber} -> { peerId: "xyz", lastSeen: 123 }
-            const userRef = db.ref('users/' + myPhone);
+            // We use the PeerID as the key in the user list now, since there is no phone number
+            const userRef = db.ref('users/' + myPeerId);
             userRef.set({
-                peerId: myPeerId,
+                name: myName,
                 lastSeen: Date.now()
             });
             
+            // Remove from list if I disconnect
             userRef.onDisconnect().remove();
         }
 
-        // --- FRIEND LOGIC ---
-
-        async function addFriendByPhone() {
-            const input = document.getElementById('friend-search-input').value.trim();
-            const cleanInput = input.replace(/[^0-9+]/g, '');
+        // --- DIRECTORY LISTENER ---
+        function initOnlineUsersListener() {
+            const listContainer = document.getElementById('online-list');
             
-            if(!cleanInput) return;
-            if(cleanInput === myPhone) { alert("That's your number!"); return; }
-
-            // Check if already friend
-            if(friends.some(f => f.phone === cleanInput)) {
-                alert("Already in your list.");
-                return;
-            }
-
-            // In this logic, we don't strictly need to check if they are online to add them.
-            // We just add them to the contact list.
-            friends.push({ phone: cleanInput });
-            saveFriends();
-            renderFriends();
-            document.getElementById('friend-search-input').value = "";
-        }
-
-        function saveFriends() {
-            localStorage.setItem('messenger_friends_v2', JSON.stringify(friends));
-        }
-
-        function renderFriends() {
-            const list = document.getElementById('friends-list');
-            list.innerHTML = '';
-            
-            if(friends.length === 0) {
-                list.innerHTML = '<div style="color:#777;text-align:center;padding:20px;font-size:0.9rem;">No contacts.<br>Add a friend by entering their phone number above!</div>';
-                return;
-            }
-
-            friends.forEach(friend => {
-                const el = document.createElement('div');
-                el.className = 'friend-item';
-                // Check if online before calling
-                el.onclick = () => tryCallFriend(friend.phone);
+            db.ref('users').on('value', snapshot => {
+                const users = snapshot.val();
+                listContainer.innerHTML = '';
                 
-                el.innerHTML = `
-                    <div class="avatar">
-                        <i class="fas fa-user"></i>
-                        <div class="status-dot" id="status-${friend.phone}"></div>
-                    </div>
-                    <div class="friend-info">
-                        <div class="friend-name">${friend.phone}</div>
-                        <div class="friend-id">Tap to call</div>
-                    </div>
-                    <div class="call-btn"><i class="fas fa-phone"></i></div>
-                `;
-                list.appendChild(el);
-                checkPresence(friend.phone);
-            });
-        }
+                if(!users) {
+                    listContainer.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No other users online.</div>';
+                    return;
+                }
 
-        function checkPresence(phone) {
-            db.ref('users/' + phone).on('value', snap => {
-                const dot = document.getElementById('status-' + phone);
-                if(dot) {
-                    if(snap.exists()) dot.classList.add('online');
-                    else dot.classList.remove('online');
+                let count = 0;
+                // Loop through all users in DB
+                for (const [peerId, userData] of Object.entries(users)) {
+                    // Don't show myself
+                    if(peerId === myPeerId) continue;
+
+                    count++;
+                    const el = document.createElement('div');
+                    el.className = 'user-item';
+                    el.onclick = () => initiateCall(peerId, userData.name);
+                    
+                    el.innerHTML = `
+                        <div class="avatar">
+                            ${userData.name.charAt(0).toUpperCase()}
+                            <div class="status-dot"></div>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">${userData.name}</div>
+                        </div>
+                        <div class="call-icon"><i class="fas fa-video"></i></div>
+                    `;
+                    listContainer.appendChild(el);
+                }
+
+                if(count === 0) {
+                     listContainer.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No other users online right now.</div>';
                 }
             });
         }
 
         // --- CALLING LOGIC ---
 
-        async function tryCallFriend(phone) {
-            // 1. Look up their current Peer ID
-            const snapshot = await db.ref('users/' + phone).once('value');
-            const userData = snapshot.val();
-
-            if(!userData || !userData.peerId) {
-                alert("User is offline or not registered.");
-                return;
-            }
-
-            initiateCall(userData.peerId, phone);
-        }
-
-        async function initiateCall(destPeerId, destPhone) {
-            // Ensure stream is ready
+        async function initiateCall(destPeerId, destName) {
             if(!localStream) {
                  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             }
             document.getElementById('localVideo').srcObject = localStream;
 
+            // Metadata helps the receiver know who is calling
+            const meta = { 
+                callerName: myName
+            };
+
             // 1. Text Connection
-            const conn = peer.connect(destPeerId, { metadata: { callerPhone: myPhone } });
+            const conn = peer.connect(destPeerId, { metadata: meta });
             setupDataConnection(conn);
 
             // 2. Media Call
-            const call = peer.call(destPeerId, localStream, { metadata: { callerPhone: myPhone } });
+            const call = peer.call(destPeerId, localStream, { metadata: meta });
             handleCall(call);
 
             setupUIForCall();
@@ -702,10 +664,10 @@
             
             incomingCallRequest = call;
             
-            // Get caller info from metadata if available, or just show unknown
-            const callerPhone = (call.metadata && call.metadata.callerPhone) ? call.metadata.callerPhone : "Unknown Number";
+            // Read metadata
+            const callerName = (call.metadata && call.metadata.callerName) ? call.metadata.callerName : "Unknown";
             
-            document.getElementById('caller-id-display').innerText = callerPhone;
+            document.getElementById('caller-id-display').innerHTML = `<b>${callerName}</b>`;
             document.getElementById('modal-overlay').classList.remove('hidden');
             startRingtone();
         }
@@ -831,33 +793,31 @@
             if (!window.AudioContext) return;
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
                 
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(440, audioContext.currentTime); 
-                oscillator.frequency.setValueAtTime(554.37, audioContext.currentTime + 0.2); 
-                
-                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
-                gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1);
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                oscillator.start();
-                
-                setInterval(() => {
-                    if(audioContext && audioContext.state === 'running') {
-                         const osc = audioContext.createOscillator();
-                         const gn = audioContext.createGain();
-                         osc.frequency.setValueAtTime(440, audioContext.currentTime);
-                         gn.gain.setValueAtTime(0.3, audioContext.currentTime);
-                         gn.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                         osc.connect(gn);
-                         gn.connect(audioContext.destination);
-                         osc.start();
-                         osc.stop(audioContext.currentTime + 0.5);
-                    }
+                const playBeep = () => {
+                    if(!audioContext) return;
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, audioContext.currentTime);
+                    osc.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 0.1);
+                    
+                    gain.gain.setValueAtTime(0, audioContext.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+                    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.6);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    
+                    osc.start();
+                    osc.stop(audioContext.currentTime + 0.6);
+                };
+
+                playBeep();
+                const intervalId = setInterval(() => {
+                    if(audioContext && audioContext.state === 'running') playBeep();
+                    else clearInterval(intervalId);
                 }, 1500);
 
             } catch(e) { console.error("Audio error", e); }
