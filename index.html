@@ -37,7 +37,7 @@
             background: var(--bg);
             color: var(--text);
             margin: 0;
-            height: 100vh; /* Fallback */
+            height: 100vh;
             height: calc(var(--vh, 1vh) * 100);
             overflow: hidden;
             display: flex;
@@ -49,6 +49,32 @@
         .btn-icon { background: none; border: none; color: var(--primary); font-size: 1.2rem; cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; }
         .btn-icon:hover { background: rgba(255,255,255,0.1); }
         .btn-icon:active { transform: scale(0.95); }
+
+        /* --- TOAST --- */
+        #toast-container {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(40, 40, 40, 0.95);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            animation: fadeIn 0.3s ease-out;
+            pointer-events: auto;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         /* --- AVATAR --- */
         .avatar {
@@ -211,11 +237,11 @@
             position: fixed; inset: 0; background: #000; z-index: 4000;
             display: none; flex-direction: column;
         }
-        #remote-video { width: 100%; height: 100%; object-fit: cover; }
+        #remote-video { width: 100%; height: 100%; object-fit: cover; background: #000; }
         #local-video {
             position: absolute; bottom: 100px; right: 20px; width: 100px; height: 150px;
             background: #222; border-radius: 12px; border: 2px solid rgba(255,255,255,0.2);
-            object-fit: cover; z-index: 4001; transition: 0.3s;
+            object-fit: cover; z-index: 4001; transition: 0.3s; transform: scaleX(-1); /* Mirror local */
         }
         .call-controls {
             position: absolute; bottom: 40px; left: 0; width: 100%;
@@ -243,6 +269,9 @@
     </style>
 </head>
 <body>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
 
     <!-- AUTH SCREEN -->
     <div id="auth-screen">
@@ -272,7 +301,6 @@
     </div>
 
     <!-- APP CONTAINER -->
-    <!-- SIDEBAR -->
     <div id="sidebar">
         <div class="sidebar-header">
             <div class="my-profile-head" onclick="showMyProfile()">
@@ -289,12 +317,9 @@
                 <input placeholder="Search Messenger" oninput="filterUsers(this.value)">
             </div>
         </div>
-        <div id="user-list">
-            <!-- User List Injected Here -->
-        </div>
+        <div id="user-list"></div>
     </div>
 
-    <!-- MAIN CHAT -->
     <div id="main-area">
         <div id="chat-header" class="hidden">
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -321,13 +346,12 @@
 
         <div id="messages-container" class="hidden"></div>
         
-        <!-- Recording Overlay -->
         <div id="recording-overlay">
             <div class="rec-timer">
                 <div class="rec-dot"></div>
                 <span id="rec-time-display">0:00</span>
             </div>
-            <div style="color:white; font-size:0.9rem;" id="rec-status-text">Recording Audio...</div>
+            <div style="color:white; font-size:0.9rem;" id="rec-status-text">Recording...</div>
             <div style="display:flex; gap: 20px; align-items: center;">
                 <div style="cursor:pointer; color:var(--text-secondary);" onclick="cancelRecording()">Cancel</div>
                 <div class="btn-icon" style="background:var(--primary); color:white;" onclick="finishRecording()"><i class="fas fa-paper-plane"></i></div>
@@ -351,6 +375,7 @@
 
     <!-- CALL UI -->
     <div id="call-interface">
+        <!-- Added explicit muted/autoplay attributes -->
         <video id="remote-video" autoplay playsinline></video>
         <video id="local-video" autoplay muted playsinline></video>
         <div style="position: absolute; top: 40px; left: 0; width: 100%; text-align: center; z-index: 4002;">
@@ -371,16 +396,6 @@
             <div class="avatar" id="modal-avatar" style="width:100px; height:100px; margin: 0 auto 15px auto; font-size:2.5rem;"></div>
             <h2 id="modal-name">Name</h2>
             <p id="modal-username" style="color:var(--text-secondary); margin-bottom:20px;">@username</p>
-            <div style="display:flex; justify-content:center; gap:10px;">
-                <div style="text-align:center; flex:1;">
-                    <button class="btn-icon" style="background:var(--surface-hover); width:45px; height:45px;"><i class="fas fa-phone"></i></button>
-                    <div style="font-size:0.8rem; margin-top:5px;">Audio</div>
-                </div>
-                <div style="text-align:center; flex:1;">
-                    <button class="btn-icon" style="background:var(--surface-hover); width:45px; height:45px;"><i class="fas fa-video"></i></button>
-                    <div style="font-size:0.8rem; margin-top:5px;">Video</div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -397,13 +412,27 @@
         </div>
     </div>
 
-    <!-- LIBRARIES -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
 
     <script>
-        /* --- CONFIG & INIT --- */
+        // --- TOAST NOTIFICATION ---
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = message;
+            container.appendChild(toast);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyBMt7ZBB_onQizBL1iruXmCJP8V_TsNArA",
             authDomain: "videocall-ca4e2.firebaseapp.com",
@@ -416,12 +445,12 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        let currentUser = null; // { username, name, avatar, id }
+        let currentUser = null; 
         let currentChatUser = null;
         let peer = null;
         let peerId = null;
         
-        // --- AUTH LOGIC ---
+        /* --- AUTH LOGIC --- */
         function checkAuth() {
             const stored = localStorage.getItem('messenger_user');
             if (stored) {
@@ -435,7 +464,6 @@
             document.getElementById('signup-form').classList.toggle('hidden');
         }
 
-        // Avatar Preview for Signup
         function previewAvatar(input) {
             const file = input.files[0];
             if (file) {
@@ -450,24 +478,22 @@
         }
 
         function handleSignup() {
-            const user = document.getElementById('signup-user').value.toLowerCase().trim().replace(/\s/g, '_');
+            const user = document.getElementById('signup-user').value.toLowerCase().trim().replace(/[^a-z0-9_]/g, ''); // STRICT SANITIZATION
             const pass = document.getElementById('signup-pass').value;
             const name = document.getElementById('signup-name').value.trim();
             const file = document.getElementById('signup-avatar-input').files[0];
 
-            if (!user || !pass || !name) return alert("Please fill all fields");
+            if (!user || !pass || !name) return showToast("Please fill all fields");
 
-            // Check if user exists
             db.ref('users/' + user).once('value', snap => {
                 if (snap.exists()) {
-                    alert("Username already taken!");
+                    showToast("Username already taken!");
                 } else {
-                    // Create User
                     let avatarBase64 = ""; 
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = e => {
-                            avatarBase64 = e.target.result; // Not efficient for large scale but works for demo
+                            avatarBase64 = e.target.result; 
                             createUser(user, pass, name, avatarBase64);
                         };
                         reader.readAsDataURL(file);
@@ -479,16 +505,8 @@
         }
 
         function createUser(user, pass, name, avatar) {
-            const userData = {
-                username: user,
-                password: pass, // In prod, NEVER store plain text passwords
-                name: name,
-                avatar: avatar || "",
-                joined: Date.now()
-            };
-            db.ref('users/' + user).set(userData).then(() => {
-                attemptLogin(user, pass);
-            });
+            const userData = { username: user, password: pass, name: name, avatar: avatar || "", joined: Date.now() };
+            db.ref('users/' + user).set(userData).then(() => attemptLogin(user, pass));
         }
 
         function handleLogin() {
@@ -505,7 +523,7 @@
                     localStorage.setItem('messenger_user', JSON.stringify({username: user, password: pass}));
                     initApp();
                 } else {
-                    if(!isAuto) alert("Invalid username or password");
+                    if(!isAuto) showToast("Invalid username or password");
                     else localStorage.removeItem('messenger_user');
                 }
             });
@@ -514,37 +532,58 @@
         function logout() {
             localStorage.removeItem('messenger_user');
             if(peer) peer.destroy();
-            // Set offline
             if(currentUser) db.ref('users/'+currentUser.username+'/status').set('offline');
             location.reload();
         }
 
-        /* --- APP INIT --- */
         function initApp() {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('my-avatar-display').innerHTML = getAvatarHTML(currentUser);
             
-            // Presence
             const presenceRef = db.ref('users/' + currentUser.username + '/status');
             presenceRef.onDisconnect().set('offline');
             presenceRef.set('online');
 
-            // Setup PeerJS
             initPeer();
-
-            // Load Users
             loadUsers();
         }
 
+        /* --- FIXED PEER INIT --- */
         function initPeer() {
-            // Using username as Peer ID to make calling easier
-            peer = new Peer(currentUser.username, {
+            // Destroy existing peer if needed to prevent ID conflict
+            if (peer) peer.destroy();
+
+            // Strict ID sanitization for PeerJS compatibility
+            const cleanId = currentUser.username.replace(/[^a-z0-9]/g, '_');
+            
+            peer = new Peer(cleanId, {
+                debug: 1, // Log errors
                 config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} 
             });
 
-            peer.on('open', id => { peerId = id; console.log("Peer ID:", id); });
+            peer.on('open', id => { 
+                peerId = id; 
+                console.log("Connected to Peer Server with ID:", id); 
+            });
+            
             peer.on('call', handleIncomingCall);
-            peer.on('error', err => console.log(err));
+            
+            peer.on('error', err => {
+                console.error("Peer Error:", err);
+                if (err.type === 'peer-unavailable') {
+                    showToast("User is not connected to the call server.");
+                    endCall();
+                }
+                if (err.type === 'disconnected') {
+                    peer.reconnect();
+                }
+            });
+
+            // Handle mobile sleep/wake disconnects
+            peer.on('disconnected', () => {
+                console.log("Peer disconnected, attempting reconnect...");
+                peer.reconnect();
+            });
         }
 
         /* --- USER LIST --- */
@@ -574,14 +613,11 @@
             });
         }
 
-        function getAvatarHTML(u) {
-            return u.avatar ? `<img src="${u.avatar}">` : u.name[0].toUpperCase();
-        }
-
+        function getAvatarHTML(u) { return u.avatar ? `<img src="${u.avatar}">` : u.name[0].toUpperCase(); }
+        
         function filterUsers(query) {
             const term = query.toLowerCase();
-            const items = document.querySelectorAll('.user-item');
-            items.forEach(item => {
+            document.querySelectorAll('.user-item').forEach(item => {
                 const name = item.querySelector('.user-name').innerText.toLowerCase();
                 item.style.display = name.includes(term) ? 'flex' : 'none';
             });
@@ -589,29 +625,21 @@
 
         /* --- CHAT LOGIC --- */
         let messagesRef = null;
-
-        function getChatID(u1, u2) {
-            return [u1, u2].sort().join('_');
-        }
+        function getChatID(u1, u2) { return [u1, u2].sort().join('_'); }
 
         function openChat(user) {
             currentChatUser = user;
-            
-            // Update UI
             document.body.classList.add('chat-active');
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('chat-header').classList.remove('hidden');
             document.getElementById('messages-container').classList.remove('hidden');
             document.getElementById('input-area').classList.remove('hidden');
             
-            // Highlight sidebar
             document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
-            // Header
             document.getElementById('header-name').innerText = user.name;
             document.getElementById('header-avatar').innerHTML = getAvatarHTML(user);
             document.getElementById('header-status').innerText = user.status === 'online' ? 'Active now' : 'Offline';
 
-            // Load Messages
             const chatID = getChatID(currentUser.username, user.username);
             const container = document.getElementById('messages-container');
             container.innerHTML = '';
@@ -619,9 +647,7 @@
             if (messagesRef) messagesRef.off();
             messagesRef = db.ref('messages/' + chatID);
             
-            messagesRef.limitToLast(50).on('child_added', snap => {
-                renderMessage(snap.val());
-            });
+            messagesRef.limitToLast(50).on('child_added', snap => renderMessage(snap.val()));
         }
 
         function closeChat() {
@@ -632,53 +658,38 @@
         function renderMessage(msg) {
             const isMe = msg.sender === currentUser.username;
             const container = document.getElementById('messages-container');
-            
             const div = document.createElement('div');
             div.className = `msg-row ${isMe ? 'me' : 'them'}`;
             
             let content = '';
             if (msg.type === 'text') content = msg.content;
-            else if (msg.type === 'image') content = `<img src="${msg.content}" onclick="viewImage(this.src)">`;
+            else if (msg.type === 'image') content = `<img src="${msg.content}" onclick="window.open(this.src)">`;
             else if (msg.type === 'video') content = `<video src="${msg.content}" controls></video>`;
             else if (msg.type === 'audio') content = `<audio src="${msg.content}" controls></audio>`;
             
-            // Avatar for 'them'
             const avatarHtml = !isMe ? `<div class="avatar msg-avatar">${getAvatarHTML(currentChatUser)}</div>` : '';
-            
-            div.innerHTML = `
-                ${!isMe ? avatarHtml : ''}
-                <div class="msg ${isMe ? 'me' : 'them'}">
-                    ${content}
-                </div>
-            `;
-            
+            div.innerHTML = `${!isMe ? avatarHtml : ''}<div class="msg ${isMe ? 'me' : 'them'}">${content}</div>`;
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
 
-        /* --- SENDING --- */
         function handleEnter(e) { if(e.key === 'Enter') sendMessage(); }
-
         function sendMessage() {
             const input = document.getElementById('msg-input');
             const txt = input.value.trim();
             if (!txt && !document.getElementById('send-btn-icon').classList.contains('fa-thumbs-up')) return;
-            
-            const content = txt || '👍';
-            pushMessage('text', content);
+            pushMessage('text', txt || '👍');
             input.value = '';
         }
 
         function sendFile(input, type) {
             const file = input.files[0];
             if (!file) return;
-            
             const reader = new FileReader();
             reader.onload = e => {
                 let msgType = 'file';
                 if (file.type.startsWith('image/')) msgType = 'image';
                 else if (file.type.startsWith('video/')) msgType = 'video';
-                
                 pushMessage(msgType, e.target.result);
             };
             reader.readAsDataURL(file);
@@ -688,40 +699,26 @@
         function pushMessage(type, content) {
             if (!currentChatUser) return;
             const chatID = getChatID(currentUser.username, currentChatUser.username);
-            db.ref('messages/' + chatID).push({
-                sender: currentUser.username,
-                type: type,
-                content: content,
-                timestamp: Date.now()
-            });
+            db.ref('messages/' + chatID).push({ sender: currentUser.username, type: type, content: content, timestamp: Date.now() });
         }
 
-        /* --- RECORDING (Audio/Video) --- */
+        /* --- RECORDING --- */
         let mediaRecorder;
         let recordedChunks = [];
         let recTimerInt;
-        let recSeconds = 0;
 
         async function startRecording(type) {
-            // type: 'audio' or 'video'
             try {
-                const constraints = type === 'audio' ? { audio: true } : { video: true, audio: true };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                
+                const stream = await navigator.mediaDevices.getUserMedia(type === 'audio' ? { audio: true } : { video: true, audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 recordedChunks = [];
-                
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.start();
                 
-                // UI
                 document.getElementById('recording-overlay').style.display = 'flex';
-                document.getElementById('rec-status-text').innerText = type === 'audio' ? 'Recording Audio...' : 'Recording Video Message...';
+                document.getElementById('rec-status-text').innerText = type === 'audio' ? 'Recording Audio...' : 'Recording Video...';
                 
-                recSeconds = 0;
+                let recSeconds = 0;
                 document.getElementById('rec-time-display').innerText = "0:00";
                 recTimerInt = setInterval(() => {
                     recSeconds++;
@@ -729,84 +726,78 @@
                     const s = (recSeconds%60).toString().padStart(2,'0');
                     document.getElementById('rec-time-display').innerText = `${m}:${s}`;
                 }, 1000);
-                
-                // Store type for finish
                 mediaRecorder.recType = type;
-
-            } catch (e) {
-                alert("Permission denied or device not found.");
-            }
+            } catch (e) { showToast("Permission denied."); }
         }
 
-        function toggleVideoMsg() {
-            startRecording('video');
-        }
-
+        function toggleVideoMsg() { startRecording('video'); }
         function finishRecording() {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
                 mediaRecorder.onstop = () => {
-                    const type = mediaRecorder.recType;
-                    const mime = type === 'audio' ? 'audio/webm' : 'video/webm';
-                    const blob = new Blob(recordedChunks, { type: mime });
-                    
-                    // Convert to Base64 to store in RTDB (Note: Limits apply, usually <10MB)
+                    const blob = new Blob(recordedChunks, { type: mediaRecorder.recType === 'audio' ? 'audio/webm' : 'video/webm' });
                     const reader = new FileReader();
-                    reader.onload = e => {
-                        pushMessage(type, e.target.result);
-                    };
+                    reader.onload = e => { pushMessage(mediaRecorder.recType, e.target.result); };
                     reader.readAsDataURL(blob);
-                    
                     cleanupRec();
                 };
             }
         }
-
-        function cancelRecording() {
-            if (mediaRecorder) mediaRecorder.stop();
-            cleanupRec();
-        }
-
+        function cancelRecording() { if (mediaRecorder) mediaRecorder.stop(); cleanupRec(); }
         function cleanupRec() {
             document.getElementById('recording-overlay').style.display = 'none';
             clearInterval(recTimerInt);
-            // Stop tracks
-            if(mediaRecorder && mediaRecorder.stream) {
-                mediaRecorder.stream.getTracks().forEach(t => t.stop());
-            }
+            if(mediaRecorder && mediaRecorder.stream) mediaRecorder.stream.getTracks().forEach(t => t.stop());
         }
 
-        /* --- CALLING (PeerJS) --- */
+        /* --- FIXED CALLING LOGIC --- */
         let currentCall = null;
         let localStream = null;
         let incomingCallRequest = null;
 
         async function startCall(type) {
             if (!currentChatUser) return;
+            
+            // Reconnect logic if idle for too long
+            if (!peer || peer.disconnected) {
+                console.log("Peer disconnected, reconnecting before call...");
+                peer.reconnect();
+                await new Promise(r => setTimeout(r, 1000)); // Wait for reconnect
+            }
+
             const video = type === 'video';
+            
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: video, audio: true });
-                document.getElementById('local-video').srcObject = localStream;
+                
+                // Set Local Video immediately
+                const localVid = document.getElementById('local-video');
+                localVid.srcObject = localStream;
+                localVid.play(); // Force play
+
                 document.getElementById('call-interface').style.display = 'flex';
                 document.getElementById('call-partner-name').innerText = currentChatUser.name;
                 document.getElementById('call-status').innerText = "Calling...";
                 
-                const call = peer.call(currentChatUser.username, localStream, {
+                // Target the sanitized ID
+                const targetId = currentChatUser.username.replace(/[^a-z0-9]/g, '_');
+                
+                const call = peer.call(targetId, localStream, {
                     metadata: { type: type, callerName: currentUser.name, callerAvatar: currentUser.avatar }
                 });
                 
                 handleCallEvents(call);
-            } catch(e) { alert("Call failed: " + e); }
+            } catch(e) { 
+                showToast("Could not access camera/mic: " + e.message); 
+                endCall();
+            }
         }
 
         function handleIncomingCall(call) {
             incomingCallRequest = call;
             const meta = call.metadata;
-            
             document.getElementById('inc-name').innerText = meta.callerName;
-            const avi = document.getElementById('inc-avatar');
-            avi.innerHTML = meta.callerAvatar ? `<img src="${meta.callerAvatar}">` : meta.callerName[0];
-            
+            document.getElementById('inc-avatar').innerHTML = meta.callerAvatar ? `<img src="${meta.callerAvatar}">` : meta.callerName[0];
             document.getElementById('incoming-call-modal').style.display = 'flex';
         }
 
@@ -815,18 +806,22 @@
             const type = incomingCallRequest.metadata.type;
             
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: type === 'video', audio: true 
-                });
+                localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
                 
-                document.getElementById('local-video').srcObject = localStream;
+                const localVid = document.getElementById('local-video');
+                localVid.srcObject = localStream;
+                localVid.play();
+
                 document.getElementById('call-interface').style.display = 'flex';
                 document.getElementById('call-partner-name').innerText = incomingCallRequest.metadata.callerName;
                 document.getElementById('call-status').innerText = "Connected";
                 
                 incomingCallRequest.answer(localStream);
                 handleCallEvents(incomingCallRequest);
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                showToast("Error answering call: " + e.message); 
+                rejectCall();
+            }
         }
 
         function rejectCall() {
@@ -836,12 +831,24 @@
 
         function handleCallEvents(call) {
             currentCall = call;
+            
             call.on('stream', remoteStream => {
-                document.getElementById('remote-video').srcObject = remoteStream;
+                const remoteVid = document.getElementById('remote-video');
+                remoteVid.srcObject = remoteStream;
+                
+                // CRITICAL FIX: Explicit play Promise
+                remoteVid.onloadedmetadata = () => {
+                    remoteVid.play().catch(e => console.error("Auto-play prevented:", e));
+                };
+                
                 document.getElementById('call-status').innerText = "Connected";
             });
+
             call.on('close', endCallUI);
-            call.on('error', endCallUI);
+            call.on('error', e => {
+                console.error("Call error", e);
+                endCallUI();
+            });
         }
 
         function endCall() {
@@ -850,16 +857,22 @@
         }
 
         function endCallUI() {
-            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            // STOP ALL TRACKS (Turns off camera light)
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
             document.getElementById('call-interface').style.display = 'none';
             document.getElementById('remote-video').srcObject = null;
+            document.getElementById('local-video').srcObject = null;
             currentCall = null;
         }
 
         function toggleMute() {
             if (localStream) {
                 const track = localStream.getAudioTracks()[0];
-                track.enabled = !track.enabled;
+                if(track) track.enabled = !track.enabled;
             }
         }
         function toggleCam() {
@@ -870,28 +883,18 @@
         }
 
         /* --- MODALS --- */
-        function showMyProfile() {
-            showProfileData(currentUser);
-        }
-        function showUserProfile() {
-            if(currentChatUser) showProfileData(currentChatUser);
-        }
-        
+        function showMyProfile() { showProfileData(currentUser); }
+        function showUserProfile() { if(currentChatUser) showProfileData(currentChatUser); }
         function showProfileData(u) {
             document.getElementById('modal-name').innerText = u.name;
             document.getElementById('modal-username').innerText = '@' + u.username;
             document.getElementById('modal-avatar').innerHTML = getAvatarHTML(u);
             document.getElementById('profile-modal').style.display = 'flex';
         }
-        
-        function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
-        }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
         // Init
         checkAuth();
-        
-        // Mobile Height Fix
         let vh = window.innerHeight * 0.01;
         document.documentElement.style.setProperty('--vh', `${vh}px`);
         window.addEventListener('resize', () => {
