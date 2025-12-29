@@ -60,6 +60,7 @@
         
         #chat-header-info { display: flex; align-items: center; gap: 10px; }
         #chat-partner-name { font-weight: bold; font-size: 1.1rem; }
+        #chat-partner-status { font-size: 0.8rem; color: #888; margin-left: 10px; }
         
         .header-btn {
             background: rgba(0, 132, 255, 0.1); border: none; color: var(--primary);
@@ -77,15 +78,72 @@
             background: #000;
             z-index: 100;
             display: none;
+            transition: all 0.3s ease;
         }
         
+        /* Show video grid when call active */
         body.call-active #video-grid { display: block; }
+
+        /* --- MINIMIZED MODE (Screen-on-Screen) --- */
+        body.call-minimized #video-grid {
+            width: 130px; 
+            height: 180px;
+            top: auto; 
+            bottom: 90px; /* Above chat input */
+            left: auto; 
+            right: 15px;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 200;
+            overflow: hidden;
+        }
+
+        body.call-minimized #localVideo {
+            width: 35px !important; 
+            height: 50px !important;
+            top: auto !important; 
+            bottom: 5px !important; 
+            right: 5px !important;
+            border-width: 1px !important;
+            z-index: 202 !important;
+        }
+
+        body.call-minimized #remoteVideo {
+            border-radius: 12px;
+        }
+
+        body.call-minimized #controls-bar {
+            display: none !important; /* Hide main controls in mini mode */
+        }
+
+        /* Restore Button (Only visible in mini mode) */
+        #restore-btn {
+            display: none;
+            position: absolute;
+            top: 5px; left: 5px;
+            width: 30px; height: 30px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            z-index: 205;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        body.call-minimized #restore-btn { display: flex; }
+
+        /* Ensure chat is visible when minimized */
+        body.call-minimized #chat-container { display: flex !important; }
+        body.call-minimized #chat-header { display: flex !important; }
+        /* ----------------------------------------- */
 
         /* VIDEOS */
         #localVideo { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
         #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
 
-        /* PIP Mode */
+        /* PIP Mode (Self View) */
         body.call-active #localVideo {
             position: absolute;
             width: 110px; height: 160px;
@@ -198,10 +256,17 @@
         .my-profile { display: flex; align-items: center; gap: 15px; }
         .my-name-display { font-weight: bold; font-size: 1.1rem; }
         #online-list { flex: 1; overflow-y: auto; padding: 10px; }
+        
         .user-item { display: flex; align-items: center; padding: 15px; border-radius: 12px; cursor: pointer; gap: 15px; margin-bottom: 8px; background: rgba(255,255,255,0.03); }
         .user-item:hover { background: var(--gray); }
-        .avatar { width: 50px; height: 50px; background: linear-gradient(135deg, #0084ff, #00c6ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: white; flex-shrink: 0; }
+        .avatar { width: 50px; height: 50px; background: linear-gradient(135deg, #0084ff, #00c6ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: white; flex-shrink: 0; position: relative; }
         .user-name { font-weight: 600; font-size: 1.05rem; }
+        
+        .status-dot {
+            width: 12px; height: 12px; background: #666; border-radius: 50%;
+            position: absolute; bottom: 0; right: 0; border: 2px solid var(--surface);
+        }
+        .status-dot.online { background: var(--green); }
 
         /* --- INCOMING CALL MODAL --- */
         #modal-overlay {
@@ -224,12 +289,8 @@
         
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            /* Sidebar covers entire screen on mobile (List View) */
             #sidebar { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transform: translateX(0); z-index: 200; }
-            /* When collapsed, it slides left, revealing the chat behind it */
             #sidebar.collapsed { transform: translateX(-100%); display: flex; }
-            
-            /* Header adjustments for mobile back button */
             #chat-header { padding-left: 50px; }
             .toggle-sidebar-btn { top: 10px; background: rgba(0,0,0,0.2); }
         }
@@ -281,24 +342,23 @@
 
     <!-- MAIN AREA (CHAT & VIDEO) -->
     <div id="main-area">
-        <!-- Back Button (Only visible on mobile when chat is open) -->
         <button class="toggle-sidebar-btn hidden" id="mobile-menu-btn" onclick="toggleSidebar()">
             <i class="fas fa-arrow-left"></i>
         </button>
 
-        <!-- Chat Header -->
         <div id="chat-header">
             <div id="chat-header-info">
                 <div class="avatar" style="width:35px; height:35px; font-size:1rem;"><i class="fas fa-user"></i></div>
-                <div id="chat-partner-name">Select User</div>
+                <div>
+                    <div id="chat-partner-name">Select User</div>
+                    <div id="chat-partner-status"></div>
+                </div>
             </div>
             <div>
-                <!-- Video Call Trigger -->
                 <button class="header-btn" onclick="startVideoCall()"><i class="fas fa-video"></i></button>
             </div>
         </div>
 
-        <!-- Chat Area (Text) -->
         <div id="chat-container">
             <div id="messages"></div>
             <div id="chat-input-area">
@@ -309,14 +369,14 @@
             </div>
         </div>
 
-        <!-- Placeholder (When no chat selected) -->
         <div id="placeholder-text">
             <i class="fas fa-comments" style="font-size: 4rem; opacity: 0.2;"></i>
             <span>Select a user to start chatting</span>
         </div>
 
-        <!-- Video Overlay (Hidden until call starts) -->
+        <!-- Video Overlay -->
         <div id="video-grid">
+            <button id="restore-btn" onclick="toggleMinimize()"><i class="fas fa-expand"></i></button>
             <video id="remoteVideo" autoplay playsinline></video>
             <video id="localVideo" autoplay muted playsinline class="mirrored"></video>
             
@@ -324,6 +384,8 @@
                 <button class="control-btn" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
                 <button class="control-btn end-call" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
                 <button class="control-btn" onclick="toggleCameraVideo()"><i class="fas fa-video"></i></button>
+                <!-- Minimize Button -->
+                <button class="control-btn" onclick="toggleMinimize()"><i class="fas fa-compress"></i></button>
                 <button class="control-btn" onclick="switchCamera()"><i class="fas fa-sync-alt"></i></button>
             </div>
         </div>
@@ -368,6 +430,7 @@
         let audioContext = null; 
         let wakeLock = null;
         let currentFacingMode = 'user'; 
+        let onlineUsers = {}; // Cache of online users
 
         // Viewport
         function setVh() {
@@ -448,61 +511,122 @@
         function initOnlineUsersListener() {
             const list = document.getElementById('online-list');
             db.ref('users').on('value', snap => {
-                list.innerHTML = '';
-                const users = snap.val();
-                if(!users) return;
-                for (const [pid, data] of Object.entries(users)) {
-                    if(pid === myPeerId) continue;
-                    const el = document.createElement('div');
-                    el.className = 'user-item';
-                    el.onclick = () => openChat(pid, data.name, data.username);
-                    el.innerHTML = `<div class="avatar">${data.name[0].toUpperCase()}</div><div class="user-name">${data.name}</div>`;
-                    list.appendChild(el);
-                }
+                onlineUsers = snap.val() || {};
+                renderSidebar();
             });
         }
 
-        // --- CHAT LOGIC (MOBILE FIRST) ---
-        function openChat(partnerPeerId, partnerName, partnerUsername) {
-            currentChatPartner = { id: partnerPeerId, name: partnerName, username: partnerUsername };
+        function renderSidebar() {
+            const list = document.getElementById('online-list');
+            list.innerHTML = '';
             
-            // 1. Update UI
-            document.body.classList.add('chat-open');
-            document.getElementById('chat-partner-name').innerText = partnerName;
+            // Get local contacts (Persistent history)
+            const contacts = JSON.parse(localStorage.getItem('messenger_contacts') || '{}');
             
-            // Mobile: Close list (Sidebar), Show Chat, Show Back Button
-            if(window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.add('collapsed');
-                const btn = document.getElementById('mobile-menu-btn');
-                btn.classList.remove('hidden');
+            // Merge Online Users into Contacts to update their current PeerID
+            for (const [pid, data] of Object.entries(onlineUsers)) {
+                if(pid === myPeerId) continue;
+                // If they are online, update/add them to contacts display list
+                // We use username as the unique key for contacts
+                if(data.username) {
+                    contacts[data.username] = {
+                        name: data.name,
+                        username: data.username,
+                        peerId: pid, // Current session ID
+                        isOnline: true,
+                        lastSeen: Date.now()
+                    };
+                }
             }
 
-            // 2. Load History
-            loadChatHistory(partnerUsername);
+            // Convert to array and sort
+            const contactArray = Object.values(contacts).sort((a,b) => b.lastSeen - a.lastSeen);
 
-            // 3. Connect
-            if(dataConnection) dataConnection.close();
-            dataConnection = peer.connect(partnerPeerId, { metadata: { callerName: myName, callerUsername: myUsername } });
-            setupDataConnection(dataConnection);
+            if(contactArray.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No contacts yet.</div>';
+                return;
+            }
+
+            contactArray.forEach(c => {
+                // If stored contact is offline, they won't have a current 'peerId' or 'isOnline' from the merge loop unless we persist peerId (which changes)
+                // So we check if their username exists in onlineUsers to confirm status
+                let isReallyOnline = false;
+                let currentPeerId = null;
+                
+                // Find if this contact is currently online
+                for(const [pid, onlineData] of Object.entries(onlineUsers)) {
+                    if(onlineData.username === c.username) {
+                        isReallyOnline = true;
+                        currentPeerId = pid;
+                        break;
+                    }
+                }
+
+                const el = document.createElement('div');
+                el.className = 'user-item';
+                // If offline, clicking does nothing or opens chat history
+                el.onclick = () => openChat(currentPeerId, c.name, c.username, isReallyOnline);
+                
+                el.innerHTML = `
+                    <div class="avatar">
+                        ${c.name[0].toUpperCase()}
+                        <div class="status-dot ${isReallyOnline ? 'online' : ''}"></div>
+                    </div>
+                    <div class="user-name">${c.name}</div>
+                `;
+                list.appendChild(el);
+            });
         }
 
-        // --- BACK NAVIGATION ---
+        // --- CHAT LOGIC ---
+        function openChat(partnerPeerId, partnerName, partnerUsername, isOnline) {
+            currentChatPartner = { id: partnerPeerId, name: partnerName, username: partnerUsername };
+            
+            document.body.classList.add('chat-open');
+            document.getElementById('chat-partner-name').innerText = partnerName;
+            document.getElementById('chat-partner-status').innerText = isOnline ? 'Online' : 'Offline';
+            
+            // Video button disabled if offline
+            const vidBtn = document.querySelector('.header-btn');
+            if(!isOnline || !partnerPeerId) {
+                vidBtn.style.opacity = '0.5';
+                vidBtn.onclick = () => alert("User is offline");
+            } else {
+                vidBtn.style.opacity = '1';
+                vidBtn.onclick = startVideoCall;
+            }
+
+            // Mobile Nav
+            if(window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.add('collapsed');
+                document.getElementById('mobile-menu-btn').classList.remove('hidden');
+            }
+
+            loadChatHistory(partnerUsername);
+
+            // Connect if online
+            if(isOnline && partnerPeerId) {
+                if(dataConnection) dataConnection.close();
+                dataConnection = peer.connect(partnerPeerId, { metadata: { callerName: myName, callerUsername: myUsername } });
+                setupDataConnection(dataConnection);
+            } else {
+                dataConnection = null;
+            }
+        }
+
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const btn = document.getElementById('mobile-menu-btn');
-            
-            // If we are currently in Chat view (sidebar is collapsed), Go Back to List
             if(sb.classList.contains('collapsed')) {
-                sb.classList.remove('collapsed'); // Show Sidebar
-                if(window.innerWidth <= 768) btn.classList.add('hidden'); // Hide Back button
+                sb.classList.remove('collapsed');
+                if(window.innerWidth <= 768) btn.classList.add('hidden');
             } else {
-                // Should not happen via this button in this logic, but effectively goes to chat
                 sb.classList.add('collapsed');
                 btn.classList.remove('hidden');
             }
         }
 
-        // --- LOCAL STORAGE ---
+        // --- DATA PERSISTENCE ---
         function getChatKey(partnerUser) {
             const keys = [myUsername, partnerUser].sort();
             return 'chat_' + keys[0] + '_' + keys[1];
@@ -513,9 +637,7 @@
             msgsDiv.innerHTML = '';
             const key = getChatKey(partnerUser);
             const history = JSON.parse(localStorage.getItem(key) || '[]');
-            history.forEach(msg => {
-                renderMessage(msg, msg.sender === myUsername ? 'me' : 'them');
-            });
+            history.forEach(msg => renderMessage(msg, msg.sender === myUsername ? 'me' : 'them'));
         }
 
         function saveMessage(msgObj, partnerUser) {
@@ -523,6 +645,21 @@
             const history = JSON.parse(localStorage.getItem(key) || '[]');
             history.push(msgObj);
             localStorage.setItem(key, JSON.stringify(history));
+            
+            // Also update Contacts List
+            const contacts = JSON.parse(localStorage.getItem('messenger_contacts') || '{}');
+            // We need partner's display name. If we are sending, we know it from currentChatPartner.
+            // If receiving, we might need to extract it.
+            let displayName = contacts[partnerUser]?.name || partnerUser; 
+            if(currentChatPartner && currentChatPartner.username === partnerUser) displayName = currentChatPartner.name;
+            
+            contacts[partnerUser] = {
+                name: displayName,
+                username: partnerUser,
+                lastSeen: Date.now()
+            };
+            localStorage.setItem('messenger_contacts', JSON.stringify(contacts));
+            renderSidebar();
         }
 
         // --- MESSAGING ---
@@ -531,11 +668,11 @@
             const text = input.value.trim();
             if(!text || !currentChatPartner) return;
 
-            const msgData = {
-                type: 'text', content: text, sender: myUsername, timestamp: Date.now()
-            };
+            const msgData = { type: 'text', content: text, sender: myUsername, timestamp: Date.now() };
 
             if(dataConnection && dataConnection.open) dataConnection.send(msgData);
+            else if(!dataConnection) alert("User is offline. Message saved locally.");
+
             saveMessage(msgData, currentChatPartner.username);
             renderMessage(msgData, 'me');
             input.value = '';
@@ -559,7 +696,6 @@
         }
 
         function setupDataConnection(conn) {
-            conn.on('open', () => console.log("Chat connected"));
             conn.on('data', data => {
                 const senderUser = data.sender || (conn.metadata ? conn.metadata.callerUsername : 'unknown');
                 saveMessage(data, senderUser);
@@ -573,7 +709,6 @@
             const div = document.createElement('div');
             div.className = `msg ${type}`;
             const container = document.getElementById('messages');
-
             if(data.type === 'file') {
                 const blob = new Blob([data.fileData], {type: data.fileType});
                 const url = URL.createObjectURL(blob);
@@ -588,9 +723,18 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // --- VIDEO CALLING ---
+        // --- VIDEO & MINIMIZE LOGIC ---
+        function toggleMinimize() {
+            const body = document.body;
+            if(body.classList.contains('call-minimized')) {
+                body.classList.remove('call-minimized');
+            } else {
+                body.classList.add('call-minimized');
+            }
+        }
+
         async function startVideoCall() {
-            if(!currentChatPartner) return;
+            if(!currentChatPartner || !currentChatPartner.id) return;
             await startCamera(currentFacingMode);
             const call = peer.call(currentChatPartner.id, localStream, { 
                 metadata: { callerName: myName, callerUsername: myUsername } 
@@ -633,6 +777,7 @@
 
         function exitCallMode() {
             document.body.classList.remove('call-active');
+            document.body.classList.remove('call-minimized'); // Reset mini mode
             if(currentCall) currentCall.close();
             currentCall = null;
             document.getElementById('remoteVideo').srcObject = null;
@@ -646,7 +791,6 @@
             if(incomingCallRequest) incomingCallRequest.close(); 
         }
 
-        // --- HELPERS ---
         async function startCamera(mode) {
             try {
                 if(localStream) localStream.getTracks().forEach(t=>t.stop());
