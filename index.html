@@ -861,10 +861,17 @@
                 .catch(e => showToast("Error: " + e.message));
         }
 
-        /* --- PEER INIT --- */
+        /* --- PEER INIT (Fixed for Stability) --- */
         function initPeer() {
-            if (peer) peer.destroy();
             const cleanId = currentUser.username.replace(/[^a-z0-9]/g, '_');
+            
+            // Don't reconnect if already connected with same ID
+            if (peer && !peer.disconnected && peer.id === cleanId) {
+                console.log("Peer already active");
+                return;
+            }
+
+            if (peer) peer.destroy();
             
             peer = new Peer(cleanId, {
                 debug: 1, 
@@ -873,10 +880,16 @@
 
             peer.on('open', id => { peerId = id; console.log("Connected to Peer Server with ID:", id); });
             peer.on('call', handleIncomingCall);
+            
             peer.on('error', err => {
                 if (err.type === 'disconnected') peer.reconnect();
+                console.error("Peer Error:", err);
             });
-            peer.on('disconnected', () => { peer.reconnect(); });
+            
+            peer.on('disconnected', () => { 
+                console.log("Peer disconnected, trying reconnect...");
+                peer.reconnect(); 
+            });
         }
 
         function getAvatarHTML(u) { return u.avatar ? `<img src="${u.avatar}">` : u.name[0].toUpperCase(); }
@@ -930,7 +943,7 @@
             let content = '';
             if (msg.type === 'text') content = msg.content;
             else if (msg.type === 'image') content = `<img src="${msg.content}" onclick="window.open(this.src)">`;
-            else if (msg.type === 'video') content = `<video src="${msg.content}" controls></video>`;
+            else if (msg.type === 'video') content = `<video src="${msg.content}" controls playsinline></video>`;
             else if (msg.type === 'audio') content = `<audio src="${msg.content}" controls></audio>`;
             
             const avatarHtml = !isMe ? `<div class="avatar msg-avatar">${getAvatarHTML(currentChatUser)}</div>` : '';
@@ -968,17 +981,54 @@
             db.ref('messages/' + chatID).push({ sender: currentUser.username, type: type, content: content, timestamp: Date.now() });
         }
 
-        /* --- RECORDING --- */
+        /* --- RECORDING (Fixed for reliability) --- */
         let mediaRecorder;
         let recordedChunks = [];
         let recTimerInt;
 
         async function startRecording(type) {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia(type === 'audio' ? { audio: true } : { video: true, audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                const constraints = type === 'audio' ? { audio: true } : { video: true, audio: true };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // MIME Type Support Check (Fixes Safari/Mobile issues)
+                let options = {};
+                if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                    options = { mimeType: 'video/webm;codecs=vp9' };
+                } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                    options = { mimeType: 'video/webm' };
+                } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+                    options = { mimeType: 'video/mp4' };
+                }
+                
+                if (type === 'audio') {
+                    if (MediaRecorder.isTypeSupported('audio/webm')) options = { mimeType: 'audio/webm' };
+                    else if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
+                    else options = {};
+                }
+
+                mediaRecorder = new MediaRecorder(stream, options);
                 recordedChunks = [];
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                
+                // CRITICAL FIX: Define onstop BEFORE start to ensure it binds correctly
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || (type === 'audio' ? 'audio/webm' : 'video/webm') });
+                    
+                    // Size limit check (10MB)
+                    if (blob.size > 10 * 1024 * 1024) {
+                        showToast("File too large to send.");
+                        cleanupRec();
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = e => { pushMessage(mediaRecorder.recType, e.target.result); };
+                    reader.readAsDataURL(blob);
+                    cleanupRec();
+                };
+                
+                mediaRecorder.recType = type;
                 mediaRecorder.start();
                 
                 document.getElementById('recording-overlay').style.display = 'flex';
@@ -992,24 +1042,23 @@
                     const s = (recSeconds%60).toString().padStart(2,'0');
                     document.getElementById('rec-time-display').innerText = `${m}:${s}`;
                 }, 1000);
-                mediaRecorder.recType = type;
-            } catch (e) { showToast("Permission denied."); }
+            } catch (e) { showToast("Permission denied or device not found."); }
         }
 
         function toggleVideoMsg() { startRecording('video'); }
         function finishRecording() {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: mediaRecorder.recType === 'audio' ? 'audio/webm' : 'video/webm' });
-                    const reader = new FileReader();
-                    reader.onload = e => { pushMessage(mediaRecorder.recType, e.target.result); };
-                    reader.readAsDataURL(blob);
-                    cleanupRec();
-                };
             }
         }
-        function cancelRecording() { if (mediaRecorder) mediaRecorder.stop(); cleanupRec(); }
+        function cancelRecording() { 
+            if (mediaRecorder) {
+                // Prevent onstop from sending
+                mediaRecorder.onstop = null; 
+                mediaRecorder.stop();
+            }
+            cleanupRec(); 
+        }
         function cleanupRec() {
             document.getElementById('recording-overlay').style.display = 'none';
             clearInterval(recTimerInt);
@@ -1047,15 +1096,20 @@
 
         function handleIncomingCall(call) {
             incomingCallRequest = call;
-            const meta = call.metadata;
+            // Fallback for missing metadata
+            const meta = call.metadata || { callerName: 'Unknown', callerAvatar: null };
+            
             document.getElementById('inc-name').innerText = meta.callerName;
-            document.getElementById('inc-avatar').innerHTML = meta.callerAvatar ? `<img src="${meta.callerAvatar}">` : meta.callerName[0];
+            document.getElementById('inc-avatar').innerHTML = meta.callerAvatar ? `<img src="${meta.callerAvatar}">` : (meta.callerName[0] || '?');
             document.getElementById('incoming-call-modal').style.display = 'flex';
         }
 
         async function acceptCall() {
+            if (!incomingCallRequest) return;
             document.getElementById('incoming-call-modal').style.display = 'none';
-            const type = incomingCallRequest.metadata.type;
+            
+            const meta = incomingCallRequest.metadata || { type: 'audio' }; // Safety check
+            const type = meta.type;
             
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
@@ -1064,7 +1118,7 @@
                 localVid.play();
 
                 document.getElementById('call-interface').style.display = 'flex';
-                document.getElementById('call-partner-name').innerText = incomingCallRequest.metadata.callerName;
+                document.getElementById('call-partner-name').innerText = meta.callerName || 'Unknown';
                 document.getElementById('call-status').innerText = "Connected";
                 
                 incomingCallRequest.answer(localStream);
