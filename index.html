@@ -46,7 +46,7 @@
         /* --- UTILS --- */
         .hidden { display: none !important; }
         .flex-center { display: flex; align-items: center; justify-content: center; }
-        .btn-icon { background: none; border: none; color: var(--primary); font-size: 1.2rem; cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; }
+        .btn-icon { background: none; border: none; color: var(--primary); font-size: 1.2rem; cursor: pointer; padding: 8px; border-radius: 50%; transition: 0.2s; position: relative; }
         .btn-icon:hover { background: rgba(255,255,255,0.1); }
         .btn-icon:active { transform: scale(0.95); }
 
@@ -57,6 +57,26 @@
             width: 100%; margin-top: 10px; transition: 0.2s;
         }
         .btn-danger:hover { background: var(--red); color: white; }
+
+        .btn-primary {
+            background: var(--primary); color: white; border: none;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;
+        }
+        .btn-secondary {
+            background: var(--surface-hover); color: var(--text); border: none;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;
+        }
+
+        /* Badge */
+        .badge {
+            position: absolute; top: 0; right: 0;
+            background: var(--red); color: white;
+            font-size: 0.7rem; font-weight: bold;
+            width: 16px; height: 16px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid var(--surface);
+            display: none; /* hidden by default */
+        }
 
         /* --- TOAST --- */
         #toast-container {
@@ -227,6 +247,15 @@
         }
         .close-modal { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; }
         
+        #suggestions-list, #requests-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+
         /* --- CALL UI --- */
         #call-interface {
             position: fixed; inset: 0; background: #000; z-index: 4000;
@@ -311,6 +340,12 @@
                 <i class="fas fa-search"></i>
                 <input placeholder="Search contacts..." oninput="filterUsers(this.value)">
             </div>
+            <!-- Friend Requests Button -->
+            <button class="btn-icon" style="background:var(--surface-hover); border-radius:50%; margin-left:5px;" onclick="openRequestsModal()">
+                <i class="fas fa-bell"></i>
+                <div class="badge" id="requests-badge">0</div>
+            </button>
+            <!-- Add Friend Button -->
             <button class="btn-icon" style="background:var(--surface-hover); border-radius:50%;" onclick="openAddFriendModal()">
                 <i class="fas fa-user-plus"></i>
             </button>
@@ -408,10 +443,30 @@
     <div id="add-friend-modal" class="modal-overlay">
         <div class="modal-card">
             <button class="close-modal" onclick="closeModal('add-friend-modal')"><i class="fas fa-times"></i></button>
-            <h2 style="margin-bottom:15px;">Add Friend</h2>
-            <p style="color:var(--text-secondary); margin-bottom:20px;">Enter the exact username of your friend.</p>
-            <input id="add-friend-input" class="auth-input" placeholder="Username (e.g. john_doe)">
-            <button class="auth-btn" onclick="addFriend()">Add Friend</button>
+            <h2 style="margin-bottom:15px;">Send Request</h2>
+            <p style="color:var(--text-secondary); margin-bottom:10px;">Enter username or select below:</p>
+            
+            <div style="display:flex; gap:5px; margin-bottom:15px;">
+                <input id="add-friend-input" class="auth-input" style="margin:0;" placeholder="Username (e.g. john_doe)">
+                <button class="auth-btn" style="margin:0; width:auto;" onclick="sendRequestManual()">Send</button>
+            </div>
+
+            <div style="text-align:left; font-size:0.85rem; color:var(--text-secondary); font-weight:bold; margin-bottom:5px;">Suggested People</div>
+            <div id="suggestions-list">
+                <!-- Suggestions injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- REQUESTS MODAL -->
+    <div id="requests-modal" class="modal-overlay">
+        <div class="modal-card">
+            <button class="close-modal" onclick="closeModal('requests-modal')"><i class="fas fa-times"></i></button>
+            <h2 style="margin-bottom:15px;">Friend Requests</h2>
+            <div id="requests-list">
+                <!-- Requests injected here -->
+                <div style="color:var(--text-secondary);">No pending requests.</div>
+            </div>
         </div>
     </div>
 
@@ -463,6 +518,12 @@
         let currentChatUser = null;
         let peer = null;
         let peerId = null;
+        
+        // Globals for contact management
+        let allUsers = {};
+        let myFriends = {};
+        let myIncomingRequests = {};
+        let myOutgoingRequests = {};
         
         /* --- AUTH LOGIC --- */
         function checkAuth() {
@@ -560,26 +621,26 @@
 
             initPeer();
             loadContacts();
+            listenForRequests();
         }
 
         /* --- CONTACTS / FRIENDS LOGIC --- */
         function loadContacts() {
             const list = document.getElementById('user-list');
             
-            // 1. Listen for global users data (for profile info)
-            // 2. Listen for my 'friends' list
-            
-            let allUsers = {};
-            let myFriends = {};
-
             db.ref('users').on('value', snap => {
                 allUsers = snap.val() || {};
                 renderContacts();
+                // If requests modal is open, refresh it (to show avatars correctly if data changed)
+                if(document.getElementById('requests-modal').style.display === 'flex') renderRequests();
+                // If add friend modal is open, refresh suggestions
+                if(document.getElementById('add-friend-modal').style.display === 'flex') renderSuggestions();
             });
 
             db.ref('users/' + currentUser.username + '/friends').on('value', snap => {
                 myFriends = snap.val() || {};
                 renderContacts();
+                renderSuggestions();
             });
 
             function renderContacts() {
@@ -589,8 +650,8 @@
                 if (friendKeys.length === 0) {
                     list.innerHTML = `
                         <div style="text-align:center; padding:20px; color:var(--text-secondary);">
-                            <i class="fas fa-user-plus" style="font-size:1.5rem; margin-bottom:10px;"></i>
-                            <br>No friends yet.<br>Click the + icon to add one!
+                            <i class="fas fa-user-friends" style="font-size:1.5rem; margin-bottom:10px;"></i>
+                            <br>Your friend list is empty.
                         </div>
                     `;
                     return;
@@ -617,28 +678,158 @@
             }
         }
 
-        function openAddFriendModal() {
-            document.getElementById('add-friend-modal').style.display = 'flex';
+        /* --- FRIEND REQUESTS LOGIC --- */
+        function listenForRequests() {
+            db.ref('users/' + currentUser.username + '/friendRequests/incoming').on('value', snap => {
+                myIncomingRequests = snap.val() || {};
+                updateBadge();
+                renderRequests();
+            });
+
+            db.ref('users/' + currentUser.username + '/friendRequests/outgoing').on('value', snap => {
+                myOutgoingRequests = snap.val() || {};
+                renderSuggestions(); // Refresh buttons
+            });
         }
 
-        function addFriend() {
+        function updateBadge() {
+            const count = Object.keys(myIncomingRequests).length;
+            const badge = document.getElementById('requests-badge');
+            if (count > 0) {
+                badge.style.display = 'flex';
+                badge.innerText = count;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function openRequestsModal() {
+            document.getElementById('requests-modal').style.display = 'flex';
+            renderRequests();
+        }
+
+        function renderRequests() {
+            const list = document.getElementById('requests-list');
+            list.innerHTML = '';
+            
+            const reqs = Object.keys(myIncomingRequests);
+            if (reqs.length === 0) {
+                list.innerHTML = '<div style="color:var(--text-secondary); padding:10px;">No pending requests.</div>';
+                return;
+            }
+
+            reqs.forEach(uid => {
+                const u = allUsers[uid];
+                if (!u) return;
+
+                const div = document.createElement('div');
+                div.className = 'user-item';
+                div.style.cursor = 'default';
+                div.innerHTML = `
+                    <div class="avatar" style="width:36px; height:36px;">${getAvatarHTML(u)}</div>
+                    <div style="flex:1;">
+                        <div class="user-name">${u.name}</div>
+                        <div class="user-status">@${u.username}</div>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-primary" onclick="acceptRequest('${u.username}')">Confirm</button>
+                        <button class="btn-secondary" onclick="rejectRequest('${u.username}')">Delete</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function acceptRequest(uid) {
+            // Add Friend Both Ways
+            const updates = {};
+            updates['users/' + currentUser.username + '/friends/' + uid] = true;
+            updates['users/' + uid + '/friends/' + currentUser.username] = true;
+            
+            // Remove Requests
+            updates['users/' + currentUser.username + '/friendRequests/incoming/' + uid] = null;
+            updates['users/' + uid + '/friendRequests/outgoing/' + currentUser.username] = null;
+
+            db.ref().update(updates).then(() => showToast("Friend added!"));
+        }
+
+        function rejectRequest(uid) {
+            const updates = {};
+            updates['users/' + currentUser.username + '/friendRequests/incoming/' + uid] = null;
+            updates['users/' + uid + '/friendRequests/outgoing/' + currentUser.username] = null;
+            db.ref().update(updates);
+        }
+
+        /* --- ADD FRIENDS LOGIC --- */
+        function openAddFriendModal() {
+            document.getElementById('add-friend-modal').style.display = 'flex';
+            renderSuggestions();
+        }
+
+        function renderSuggestions() {
+            const container = document.getElementById('suggestions-list');
+            if (!container) return; // safety check
+            container.innerHTML = '';
+            
+            let found = false;
+            
+            Object.values(allUsers).forEach(u => {
+                if (u.username === currentUser.username) return;
+                if (myFriends[u.username]) return; // Already friends
+                
+                // Don't show if already in incoming requests (handle in requests tab)
+                if (myIncomingRequests[u.username]) return; 
+
+                found = true;
+                const isRequested = myOutgoingRequests[u.username];
+
+                const div = document.createElement('div');
+                div.className = 'user-item'; 
+                div.style.cursor = "default";
+                div.innerHTML = `
+                    <div class="avatar" style="width:32px; height:32px; font-size:0.9rem;">${getAvatarHTML(u)}</div>
+                    <div style="flex:1;">
+                        <div class="user-name" style="font-size:0.9rem;">${u.name}</div>
+                        <div class="user-status" style="font-size:0.75rem;">@${u.username}</div>
+                    </div>
+                    <button class="auth-btn" style="margin:0; width:auto; padding:5px 12px; font-size:0.8rem; background:${isRequested ? 'var(--surface-hover)' : 'var(--primary)'}; color:${isRequested ? 'var(--text-secondary)' : 'white'};" 
+                        onclick="sendRequest('${u.username}')" ${isRequested ? 'disabled' : ''}>
+                        ${isRequested ? 'Requested' : 'Add'}
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+            
+            if (!found) {
+                container.innerHTML = '<div style="color:var(--text-secondary); padding:10px;">No new people found.</div>';
+            }
+        }
+
+        function sendRequestManual() {
             const input = document.getElementById('add-friend-input');
             const targetUsername = input.value.toLowerCase().trim();
+            if (targetUsername) {
+                sendRequest(targetUsername);
+                input.value = '';
+            }
+        }
 
-            if (!targetUsername) return;
+        function sendRequest(targetUsername) {
             if (targetUsername === currentUser.username) return showToast("You cannot add yourself.");
+            if (myFriends[targetUsername]) return showToast("Already friends!");
 
             db.ref('users/' + targetUsername).once('value', snap => {
                 if (snap.exists()) {
-                    // Mutual Add for Simplicity
-                    db.ref('users/' + currentUser.username + '/friends/' + targetUsername).set(true);
-                    db.ref('users/' + targetUsername + '/friends/' + currentUser.username).set(true);
-                    
-                    showToast("Friend added!");
-                    closeModal('add-friend-modal');
-                    input.value = '';
+                     const updates = {};
+                     updates['users/' + currentUser.username + '/friendRequests/outgoing/' + targetUsername] = true;
+                     updates['users/' + targetUsername + '/friendRequests/incoming/' + currentUser.username] = true;
+                     
+                     db.ref().update(updates).then(() => {
+                         showToast("Request sent!");
+                         renderSuggestions();
+                     });
                 } else {
-                    showToast("User not found!");
+                     showToast("User not found!");
                 }
             });
         }
@@ -653,7 +844,6 @@
                 .then(() => {
                     showToast("Chat deleted.");
                     closeModal('profile-modal');
-                    // Clear UI if needed
                     document.getElementById('messages-container').innerHTML = '';
                 })
                 .catch(e => showToast("Error: " + e.message));
