@@ -50,29 +50,24 @@
         .btn-icon:hover { background: rgba(255,255,255,0.1); }
         .btn-icon:active { transform: scale(0.95); }
 
+        .btn-danger {
+            background: rgba(255, 68, 68, 0.1); color: var(--red); 
+            border: 1px solid var(--red); padding: 10px 20px; 
+            border-radius: 8px; cursor: pointer; font-weight: bold;
+            width: 100%; margin-top: 10px; transition: 0.2s;
+        }
+        .btn-danger:hover { background: var(--red); color: white; }
+
         /* --- TOAST --- */
         #toast-container {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 5000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            pointer-events: none;
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            z-index: 5000; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
         }
         .toast {
-            background: rgba(40, 40, 40, 0.95);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 24px;
-            font-size: 0.9rem;
-            backdrop-filter: blur(4px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            border: 1px solid var(--border);
-            animation: fadeIn 0.3s ease-out;
-            pointer-events: auto;
+            background: rgba(40, 40, 40, 0.95); color: white; padding: 12px 24px;
+            border-radius: 24px; font-size: 0.9rem; backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 1px solid var(--border);
+            animation: fadeIn 0.3s ease-out; pointer-events: auto;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -146,11 +141,11 @@
         .my-profile-head { display: flex; align-items: center; gap: 12px; cursor: pointer; }
         .app-title { font-weight: 700; font-size: 1.5rem; letter-spacing: -0.5px; }
 
-        .search-container { padding: 0 16px 10px 16px; }
+        .search-container { padding: 0 16px 10px 16px; display: flex; gap: 8px; }
         .search-box {
             background: var(--surface-hover); border-radius: 20px;
             padding: 8px 12px; display: flex; align-items: center; gap: 8px;
-            color: var(--text-secondary); transition: 0.2s;
+            color: var(--text-secondary); transition: 0.2s; flex: 1;
         }
         .search-box input {
             background: transparent; border: none; color: white; width: 100%; outline: none; font-size: 0.95rem;
@@ -314,8 +309,11 @@
         <div class="search-container">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input placeholder="Search Messenger" oninput="filterUsers(this.value)">
+                <input placeholder="Search contacts..." oninput="filterUsers(this.value)">
             </div>
+            <button class="btn-icon" style="background:var(--surface-hover); border-radius:50%;" onclick="openAddFriendModal()">
+                <i class="fas fa-user-plus"></i>
+            </button>
         </div>
         <div id="user-list"></div>
     </div>
@@ -341,7 +339,7 @@
 
         <div id="empty-state" class="flex-center" style="flex-direction: column; height: 100%; color: var(--text-secondary);">
             <i class="fab fa-facebook-messenger" style="font-size: 5rem; color: var(--surface-hover); margin-bottom: 20px;"></i>
-            <h3>Select a chat to start messaging</h3>
+            <h3>Select a friend to message</h3>
         </div>
 
         <div id="messages-container" class="hidden"></div>
@@ -375,7 +373,6 @@
 
     <!-- CALL UI -->
     <div id="call-interface">
-        <!-- Added explicit muted/autoplay attributes -->
         <video id="remote-video" autoplay playsinline></video>
         <video id="local-video" autoplay muted playsinline></video>
         <div style="position: absolute; top: 40px; left: 0; width: 100%; text-align: center; z-index: 4002;">
@@ -389,13 +386,32 @@
         </div>
     </div>
 
-    <!-- USER PROFILE MODAL -->
+    <!-- MY PROFILE MODAL -->
     <div id="profile-modal" class="modal-overlay">
         <div class="modal-card">
             <button class="close-modal" onclick="closeModal('profile-modal')"><i class="fas fa-times"></i></button>
             <div class="avatar" id="modal-avatar" style="width:100px; height:100px; margin: 0 auto 15px auto; font-size:2.5rem;"></div>
             <h2 id="modal-name">Name</h2>
             <p id="modal-username" style="color:var(--text-secondary); margin-bottom:20px;">@username</p>
+            
+            <div id="my-profile-actions">
+                <button class="btn-danger" onclick="deleteAccount()">Delete Account</button>
+            </div>
+            
+            <div id="user-profile-actions" class="hidden">
+                 <button class="btn-danger" onclick="deleteChat()">Delete Conversation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD FRIEND MODAL -->
+    <div id="add-friend-modal" class="modal-overlay">
+        <div class="modal-card">
+            <button class="close-modal" onclick="closeModal('add-friend-modal')"><i class="fas fa-times"></i></button>
+            <h2 style="margin-bottom:15px;">Add Friend</h2>
+            <p style="color:var(--text-secondary); margin-bottom:20px;">Enter the exact username of your friend.</p>
+            <input id="add-friend-input" class="auth-input" placeholder="Username (e.g. john_doe)">
+            <button class="auth-btn" onclick="addFriend()">Add Friend</button>
         </div>
     </div>
 
@@ -424,8 +440,6 @@
             toast.className = 'toast';
             toast.innerText = message;
             container.appendChild(toast);
-            
-            // Remove after 3 seconds
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateY(10px)';
@@ -478,7 +492,7 @@
         }
 
         function handleSignup() {
-            const user = document.getElementById('signup-user').value.toLowerCase().trim().replace(/[^a-z0-9_]/g, ''); // STRICT SANITIZATION
+            const user = document.getElementById('signup-user').value.toLowerCase().trim().replace(/[^a-z0-9_]/g, ''); 
             const pass = document.getElementById('signup-pass').value;
             const name = document.getElementById('signup-name').value.trim();
             const file = document.getElementById('signup-avatar-input').files[0];
@@ -545,56 +559,46 @@
             presenceRef.set('online');
 
             initPeer();
-            loadUsers();
+            loadContacts();
         }
 
-        /* --- FIXED PEER INIT --- */
-        function initPeer() {
-            // Destroy existing peer if needed to prevent ID conflict
-            if (peer) peer.destroy();
-
-            // Strict ID sanitization for PeerJS compatibility
-            const cleanId = currentUser.username.replace(/[^a-z0-9]/g, '_');
+        /* --- CONTACTS / FRIENDS LOGIC --- */
+        function loadContacts() {
+            const list = document.getElementById('user-list');
             
-            peer = new Peer(cleanId, {
-                debug: 1, // Log errors
-                config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} 
-            });
-
-            peer.on('open', id => { 
-                peerId = id; 
-                console.log("Connected to Peer Server with ID:", id); 
-            });
+            // 1. Listen for global users data (for profile info)
+            // 2. Listen for my 'friends' list
             
-            peer.on('call', handleIncomingCall);
-            
-            peer.on('error', err => {
-                console.error("Peer Error:", err);
-                if (err.type === 'peer-unavailable') {
-                    showToast("User is not connected to the call server.");
-                    endCall();
-                }
-                if (err.type === 'disconnected') {
-                    peer.reconnect();
-                }
-            });
+            let allUsers = {};
+            let myFriends = {};
 
-            // Handle mobile sleep/wake disconnects
-            peer.on('disconnected', () => {
-                console.log("Peer disconnected, attempting reconnect...");
-                peer.reconnect();
-            });
-        }
-
-        /* --- USER LIST --- */
-        function loadUsers() {
             db.ref('users').on('value', snap => {
-                const list = document.getElementById('user-list');
+                allUsers = snap.val() || {};
+                renderContacts();
+            });
+
+            db.ref('users/' + currentUser.username + '/friends').on('value', snap => {
+                myFriends = snap.val() || {};
+                renderContacts();
+            });
+
+            function renderContacts() {
                 list.innerHTML = '';
-                const users = snap.val() || {};
-                
-                Object.values(users).forEach(u => {
-                    if (u.username === currentUser.username) return;
+                const friendKeys = Object.keys(myFriends);
+
+                if (friendKeys.length === 0) {
+                    list.innerHTML = `
+                        <div style="text-align:center; padding:20px; color:var(--text-secondary);">
+                            <i class="fas fa-user-plus" style="font-size:1.5rem; margin-bottom:10px;"></i>
+                            <br>No friends yet.<br>Click the + icon to add one!
+                        </div>
+                    `;
+                    return;
+                }
+
+                friendKeys.forEach(username => {
+                    const u = allUsers[username];
+                    if (!u) return; // User might be deleted
                     
                     const el = document.createElement('div');
                     el.className = 'user-item';
@@ -610,7 +614,79 @@
                     el.onclick = () => openChat(u);
                     list.appendChild(el);
                 });
+            }
+        }
+
+        function openAddFriendModal() {
+            document.getElementById('add-friend-modal').style.display = 'flex';
+        }
+
+        function addFriend() {
+            const input = document.getElementById('add-friend-input');
+            const targetUsername = input.value.toLowerCase().trim();
+
+            if (!targetUsername) return;
+            if (targetUsername === currentUser.username) return showToast("You cannot add yourself.");
+
+            db.ref('users/' + targetUsername).once('value', snap => {
+                if (snap.exists()) {
+                    // Mutual Add for Simplicity
+                    db.ref('users/' + currentUser.username + '/friends/' + targetUsername).set(true);
+                    db.ref('users/' + targetUsername + '/friends/' + currentUser.username).set(true);
+                    
+                    showToast("Friend added!");
+                    closeModal('add-friend-modal');
+                    input.value = '';
+                } else {
+                    showToast("User not found!");
+                }
             });
+        }
+
+        /* --- DELETION LOGIC --- */
+        function deleteChat() {
+            if (!currentChatUser) return;
+            if (!confirm("Delete this conversation permanently?")) return;
+
+            const chatID = getChatID(currentUser.username, currentChatUser.username);
+            db.ref('messages/' + chatID).remove()
+                .then(() => {
+                    showToast("Chat deleted.");
+                    closeModal('profile-modal');
+                    // Clear UI if needed
+                    document.getElementById('messages-container').innerHTML = '';
+                })
+                .catch(e => showToast("Error: " + e.message));
+        }
+
+        function deleteAccount() {
+            if (!confirm("Are you sure? This will delete your account permanently.")) return;
+            
+            const uid = currentUser.username;
+            db.ref('users/' + uid).remove()
+                .then(() => {
+                    alert("Account deleted.");
+                    logout();
+                })
+                .catch(e => showToast("Error: " + e.message));
+        }
+
+        /* --- PEER INIT --- */
+        function initPeer() {
+            if (peer) peer.destroy();
+            const cleanId = currentUser.username.replace(/[^a-z0-9]/g, '_');
+            
+            peer = new Peer(cleanId, {
+                debug: 1, 
+                config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]} 
+            });
+
+            peer.on('open', id => { peerId = id; console.log("Connected to Peer Server with ID:", id); });
+            peer.on('call', handleIncomingCall);
+            peer.on('error', err => {
+                if (err.type === 'disconnected') peer.reconnect();
+            });
+            peer.on('disconnected', () => { peer.reconnect(); });
         }
 
         function getAvatarHTML(u) { return u.avatar ? `<img src="${u.avatar}">` : u.name[0].toUpperCase(); }
@@ -750,47 +826,33 @@
             if(mediaRecorder && mediaRecorder.stream) mediaRecorder.stream.getTracks().forEach(t => t.stop());
         }
 
-        /* --- FIXED CALLING LOGIC --- */
+        /* --- CALLING --- */
         let currentCall = null;
         let localStream = null;
         let incomingCallRequest = null;
 
         async function startCall(type) {
             if (!currentChatUser) return;
-            
-            // Reconnect logic if idle for too long
-            if (!peer || peer.disconnected) {
-                console.log("Peer disconnected, reconnecting before call...");
-                peer.reconnect();
-                await new Promise(r => setTimeout(r, 1000)); // Wait for reconnect
-            }
+            if (!peer || peer.disconnected) { peer.reconnect(); await new Promise(r => setTimeout(r, 1000)); }
 
             const video = type === 'video';
-            
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: video, audio: true });
-                
-                // Set Local Video immediately
                 const localVid = document.getElementById('local-video');
                 localVid.srcObject = localStream;
-                localVid.play(); // Force play
+                localVid.play();
 
                 document.getElementById('call-interface').style.display = 'flex';
                 document.getElementById('call-partner-name').innerText = currentChatUser.name;
                 document.getElementById('call-status').innerText = "Calling...";
                 
-                // Target the sanitized ID
                 const targetId = currentChatUser.username.replace(/[^a-z0-9]/g, '_');
-                
                 const call = peer.call(targetId, localStream, {
                     metadata: { type: type, callerName: currentUser.name, callerAvatar: currentUser.avatar }
                 });
                 
                 handleCallEvents(call);
-            } catch(e) { 
-                showToast("Could not access camera/mic: " + e.message); 
-                endCall();
-            }
+            } catch(e) { showToast("Could not access camera/mic: " + e.message); endCall(); }
         }
 
         function handleIncomingCall(call) {
@@ -807,7 +869,6 @@
             
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
-                
                 const localVid = document.getElementById('local-video');
                 localVid.srcObject = localStream;
                 localVid.play();
@@ -818,10 +879,7 @@
                 
                 incomingCallRequest.answer(localStream);
                 handleCallEvents(incomingCallRequest);
-            } catch(e) { 
-                showToast("Error answering call: " + e.message); 
-                rejectCall();
-            }
+            } catch(e) { showToast("Error answering call: " + e.message); rejectCall(); }
         }
 
         function rejectCall() {
@@ -831,24 +889,14 @@
 
         function handleCallEvents(call) {
             currentCall = call;
-            
             call.on('stream', remoteStream => {
                 const remoteVid = document.getElementById('remote-video');
                 remoteVid.srcObject = remoteStream;
-                
-                // CRITICAL FIX: Explicit play Promise
-                remoteVid.onloadedmetadata = () => {
-                    remoteVid.play().catch(e => console.error("Auto-play prevented:", e));
-                };
-                
+                remoteVid.onloadedmetadata = () => { remoteVid.play().catch(console.error); };
                 document.getElementById('call-status').innerText = "Connected";
             });
-
             call.on('close', endCallUI);
-            call.on('error', e => {
-                console.error("Call error", e);
-                endCallUI();
-            });
+            call.on('error', endCallUI);
         }
 
         function endCall() {
@@ -857,12 +905,7 @@
         }
 
         function endCallUI() {
-            // STOP ALL TRACKS (Turns off camera light)
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            
+            if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
             document.getElementById('call-interface').style.display = 'none';
             document.getElementById('remote-video').srcObject = null;
             document.getElementById('local-video').srcObject = null;
@@ -870,21 +913,25 @@
         }
 
         function toggleMute() {
-            if (localStream) {
-                const track = localStream.getAudioTracks()[0];
-                if(track) track.enabled = !track.enabled;
-            }
+            if (localStream) { const track = localStream.getAudioTracks()[0]; if(track) track.enabled = !track.enabled; }
         }
         function toggleCam() {
-            if (localStream) {
-                const track = localStream.getVideoTracks()[0];
-                if (track) track.enabled = !track.enabled;
-            }
+            if (localStream) { const track = localStream.getVideoTracks()[0]; if (track) track.enabled = !track.enabled; }
         }
 
         /* --- MODALS --- */
-        function showMyProfile() { showProfileData(currentUser); }
-        function showUserProfile() { if(currentChatUser) showProfileData(currentChatUser); }
+        function showMyProfile() { 
+            showProfileData(currentUser); 
+            document.getElementById('my-profile-actions').classList.remove('hidden');
+            document.getElementById('user-profile-actions').classList.add('hidden');
+        }
+        function showUserProfile() { 
+            if(currentChatUser) {
+                showProfileData(currentChatUser); 
+                document.getElementById('my-profile-actions').classList.add('hidden');
+                document.getElementById('user-profile-actions').classList.remove('hidden');
+            }
+        }
         function showProfileData(u) {
             document.getElementById('modal-name').innerText = u.name;
             document.getElementById('modal-username').innerText = '@' + u.username;
