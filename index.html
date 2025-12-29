@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Random Video Chat (Mobile Friendly)</title>
+    <style>
+        :root {
+            /* Use dynamic viewport height for better mobile support */
+            --vh: 100vh; 
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: var(--vh);
+            margin: 0;
+            /* Allow scrolling if content is too tall (landscape mobile), but hidden otherwise */
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        header {
+            padding: 15px 0;
+            text-align: center;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        
+        h2 { 
+            margin: 0;
+            font-weight: 300;
+            letter-spacing: 1px;
+            font-size: 1.2rem;
+        }
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            flex: 1;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        #video-container {
+            display: flex;
+            width: 95%;
+            max-width: 1200px;
+            /* Adaptive height based on available space */
+            flex: 1;
+            min-height: 0; 
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 50%;
+            height: 100%;
+            background: #1e1e1e;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            transition: all 0.3s ease;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+            transform: scaleX(-1); /* Mirror effect for natural feel */
+        }
+
+        /* Mobile Layout Changes */
+        @media (max-width: 768px) {
+            #video-container { 
+                flex-direction: column; 
+                width: 100%;
+                gap: 2px;
+                margin-bottom: 0;
+                border-radius: 0;
+            }
+            
+            .video-wrapper { 
+                width: 100%; 
+                height: 50%; 
+                border-radius: 0;
+                border: none;
+                border-bottom: 1px solid #333;
+            }
+
+            h2 { font-size: 1rem; }
+            header { padding: 10px 0; }
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            z-index: 20;
+            padding: 20px;
+            width: 100%;
+            background: linear-gradient(to top, #121212 80%, transparent);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        /* Floating controls for mobile immersion */
+        @media (max-width: 768px) {
+            .controls {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                padding-bottom: 30px;
+            }
+        }
+
+        button {
+            padding: 18px 60px;
+            font-size: 18px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4);
+            background: #ff4444; 
+            color: white;
+            outline: none;
+            width: 80%;
+            max-width: 300px;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        button:hover { 
+            background: #ff2222; 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 20px rgba(255, 68, 68, 0.6);
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled { 
+            background: #444; 
+            color: #888;
+            cursor: not-allowed; 
+            transform: none; 
+            box-shadow: none; 
+        }
+        
+        #status { 
+            font-size: 14px; 
+            color: #ccc; 
+            background: rgba(0,0,0,0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            margin-bottom: 5px;
+        }
+
+        .label-badge {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* Swipe Instruction Overlay */
+        .swipe-instruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            padding: 15px 25px;
+            border-radius: 30px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 50;
+        }
+        
+        .swipe-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+            animation: bounce 1.5s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
+
+        /* Pulse animation for waiting */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+        }
+        
+        .searching {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>Anonymous Video Chat</h2>
+    </header>
+
+    <div id="app-container">
+        <div id="video-container">
+            <!-- Local User -->
+            <div class="video-wrapper">
+                <video id="localVideo" autoplay muted playsinline></video>
+                <div class="label-badge">You</div>
+            </div>
+            
+            <!-- Remote User -->
+            <div class="video-wrapper">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <div class="label-badge">Stranger</div>
+            </div>
+            
+            <!-- Swipe Hint Overlay -->
+            <div id="swipeHint" class="swipe-instruction">
+                <div class="swipe-icon">⬆️</div>
+                <span>Swipe up to Skip</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div id="status">Initializing camera...</div>
+            <button id="nextBtn" onclick="findNewPartner()" disabled>Start Chat</button>
+        </div>
+    </div>
+
+    <!-- 1. Load Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <!-- 2. Load PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
+
+    <script>
+        // --- YOUR CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBMt7ZBB_onQizBL1iruXmCJP8V_TsNArA",
+            authDomain: "videocall-ca4e2.firebaseapp.com",
+            databaseURL: "https://videocall-ca4e2-default-rtdb.firebaseio.com",
+            projectId: "videocall-ca4e2",
+            storageBucket: "videocall-ca4e2.firebasestorage.app",
+            messagingSenderId: "214641433634",
+            appId: "1:214641433634:web:9b050e3c6121ba2d5f3e7b",
+            measurementId: "G-2Y0FMSRQQW"
+        };
+
+        // Fix viewport height for mobile browsers (address bar issue)
+        function setVh() {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        window.addEventListener('resize', setVh);
+        setVh();
+
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (e) {
+            console.error("Firebase init error", e);
+            document.getElementById('status').innerText = "Error: Check Firebase Config";
+        }
+        
+        const db = firebase.database();
+        
+        let localStream;
+        let peer;
+        let currentCall;
+        let myPeerId;
+        let isSearching = false;
+
+        // HTML Elements
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const statusText = document.getElementById('status');
+        const nextBtn = document.getElementById('nextBtn');
+        const swipeHint = document.getElementById('swipeHint');
+
+        // --- SWIPE GESTURE LOGIC ---
+        let touchStartY = 0;
+        let touchEndY = 0;
+        const minSwipeDistance = 50; // pixels
+
+        document.addEventListener('touchstart', e => {
+            touchStartY = e.changedTouches[0].screenY;
+        }, {passive: true});
+
+        document.addEventListener('touchend', e => {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, {passive: true});
+
+        function handleSwipe() {
+            // Calculate distance
+            const distance = touchStartY - touchEndY;
+            
+            // If swiped UP significantly and button is active
+            if (distance > minSwipeDistance && !nextBtn.disabled) {
+                // Visual feedback
+                swipeHint.style.opacity = '1';
+                setTimeout(() => swipeHint.style.opacity = '0', 1000);
+                
+                // Trigger action
+                findNewPartner();
+            }
+        }
+        // ---------------------------
+
+        // 1. Start Camera
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                localStream = stream;
+                localVideo.srcObject = stream;
+                statusText.innerText = "Ready. Tap Start or Swipe Up.";
+                nextBtn.disabled = false;
+                
+                // Show swipe hint briefly on load if mobile
+                if (window.innerWidth < 768) {
+                    setTimeout(() => {
+                        swipeHint.style.opacity = '1';
+                        setTimeout(() => swipeHint.style.opacity = '0', 3000);
+                    }, 2000);
+                }
+                
+                peer = new Peer();
+                
+                peer.on('open', id => {
+                    myPeerId = id;
+                    console.log("My Peer ID:", id);
+                });
+
+                peer.on('error', err => {
+                    console.error(err);
+                    statusText.innerText = "Connection Error. Retrying...";
+                    nextBtn.classList.remove('searching');
+                    isSearching = false;
+                });
+
+                peer.on('call', call => {
+                    if(currentCall) return; 
+                    
+                    statusText.innerText = "Stranger connected!";
+                    nextBtn.innerText = "Next Person";
+                    nextBtn.classList.remove('searching');
+                    isSearching = false;
+                    
+                    call.answer(localStream);
+                    handleCall(call);
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                statusText.innerText = "Please allow camera access.";
+                statusText.style.color = "#ff4444";
+            });
+
+        // 2. Find Partner Logic
+        async function findNewPartner() {
+            if (isSearching) return; // Prevent double clicks
+            
+            if (currentCall) {
+                currentCall.close();
+                currentCall = null;
+            }
+            remoteVideo.srcObject = null;
+            
+            isSearching = true;
+            nextBtn.disabled = true; // Disable briefly to prevent spam
+            setTimeout(() => nextBtn.disabled = false, 1000);
+            
+            nextBtn.innerText = "Searching...";
+            nextBtn.classList.add('searching');
+            statusText.innerText = "Searching...";
+
+            const queueRef = db.ref('queue');
+            
+            try {
+                const snapshot = await queueRef.once('value');
+                const queue = snapshot.val();
+
+                if (queue) {
+                    const keys = Object.keys(queue);
+                    let partnerKey = null;
+                    let partnerPeerId = null;
+
+                    for (let key of keys) {
+                        if (queue[key] !== myPeerId) {
+                            partnerKey = key;
+                            partnerPeerId = queue[key];
+                            break;
+                        }
+                    }
+
+                    if (partnerKey) {
+                        await db.ref('queue/' + partnerKey).remove();
+                        statusText.innerText = "Connecting...";
+                        const call = peer.call(partnerPeerId, localStream);
+                        handleCall(call);
+                        
+                        nextBtn.innerText = "Next Person";
+                        nextBtn.classList.remove('searching');
+                        isSearching = false;
+                    } else {
+                        addToQueue();
+                    }
+                } else {
+                    addToQueue();
+                }
+            } catch (error) {
+                console.error("Firebase Error:", error);
+                statusText.innerText = "Error. Try again.";
+                isSearching = false;
+                nextBtn.classList.remove('searching');
+            }
+        }
+
+        function addToQueue() {
+            const myEntry = db.ref('queue').push();
+            myEntry.set(myPeerId);
+            myEntry.onDisconnect().remove();
+
+            statusText.innerText = "Waiting for match...";
+            nextBtn.innerText = "Skip / Stop";
+            // Remain in searching state
+        }
+
+        function handleCall(call) {
+            currentCall = call;
+            
+            call.on('stream', remoteStream => {
+                remoteVideo.srcObject = remoteStream;
+                statusText.innerText = "Connected!";
+            });
+
+            call.on('close', () => {
+                remoteVideo.srcObject = null;
+                statusText.innerText = "Stranger disconnected.";
+                currentCall = null;
+                isSearching = false;
+                nextBtn.innerText = "Find New Partner";
+                nextBtn.classList.remove('searching');
+            });
+            
+            call.on('error', (err) => {
+                 console.log(err);
+                 statusText.innerText = "Call ended.";
+            });
+        }
+    </script>
+</body>
+</html>
