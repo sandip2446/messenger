@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- Mobile App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#18191a">
+    <meta name="mobile-web-app-capable" content="yes">
+
     <title>Video Messenger</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --vh: 100vh; /* Will be set by JS */
+            --vh: 100vh; /* Dynamic viewport height */
             --primary: #0084ff;
             --bg: #18191a;
             --surface: #242526;
@@ -25,6 +32,7 @@
             height: calc(var(--vh, 1vh) * 100);
             overflow: hidden;
             display: flex;
+            overscroll-behavior: none; /* Prevent pull-to-refresh */
         }
 
         /* --- LOGIN OVERLAY --- */
@@ -57,7 +65,6 @@
             margin-bottom: 20px;
         }
 
-        /* iOS Input Zoom Fix: Font size 16px prevents zoom */
         .login-input {
             width: 100%;
             padding: 15px;
@@ -65,7 +72,7 @@
             border: 2px solid transparent;
             border-radius: 12px;
             color: white;
-            font-size: 16px; 
+            font-size: 16px; /* Prevents iOS zoom */
             margin-bottom: 20px;
             box-sizing: border-box;
             outline: none;
@@ -89,7 +96,6 @@
             margin-top: 10px;
             -webkit-tap-highlight-color: transparent;
         }
-        .login-btn:hover { background: #0073e6; }
         .login-btn:active { transform: scale(0.98); }
 
         .permission-note {
@@ -107,8 +113,9 @@
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
-            transition: transform 0.3s ease-in-out;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
             z-index: 100;
+            will-change: transform;
         }
 
         .header {
@@ -118,6 +125,7 @@
             flex-direction: column;
             gap: 15px;
             background: rgba(0,0,0,0.2);
+            padding-top: max(20px, env(safe-area-inset-top)); /* Notch support */
         }
 
         .my-profile {
@@ -162,7 +170,8 @@
             flex: 1;
             overflow-y: auto;
             padding: 10px;
-            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 80px; /* Space for bottom nav/controls */
         }
 
         .user-item {
@@ -178,7 +187,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .user-item:hover, .user-item:active { background: var(--gray); }
+        .user-item:active { background: var(--gray); transform: scale(0.98); }
 
         .avatar {
             width: 50px;
@@ -218,12 +227,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: 0.2s;
             font-size: 1.1rem;
         }
         
-        .user-item:hover .call-icon { background: var(--primary); color: white; }
-
         /* --- MAIN AREA (Video & Chat) --- */
         #main-area {
             flex: 1;
@@ -253,12 +259,16 @@
         }
 
         #localVideo { transform: scaleX(-1); border-right: 1px solid #333; }
+        
+        /* Mirroring only if using user-facing camera (default). JS will toggle this class. */
+        .mirrored { transform: scaleX(-1) !important; }
+        
         #remoteVideo {  }
 
         /* --- CHAT OVERLAY --- */
         #chat-container {
             position: absolute;
-            bottom: 90px;
+            bottom: 100px;
             right: 20px;
             width: 340px;
             max-height: 45%;
@@ -266,6 +276,7 @@
             flex-direction: column;
             pointer-events: none;
             z-index: 50;
+            transition: bottom 0.3s ease; /* For keyboard slide up */
         }
 
         #messages {
@@ -276,9 +287,9 @@
             gap: 8px;
             padding-bottom: 10px;
             pointer-events: auto;
-            scrollbar-width: none; /* Hide scrollbar Firefox */
+            scrollbar-width: none;
         }
-        #messages::-webkit-scrollbar { display: none; /* Hide scrollbar Chrome */ }
+        #messages::-webkit-scrollbar { display: none; }
 
         .msg {
             padding: 10px 16px;
@@ -333,19 +344,19 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 30px;
+            gap: 20px;
             z-index: 60;
-            padding-bottom: 10px; /* Safe area padding */
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .control-btn {
-            width: 55px;
-            height: 55px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             border: none;
             background: rgba(255,255,255,0.15);
             color: white;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -354,7 +365,7 @@
             backdrop-filter: blur(5px);
             -webkit-tap-highlight-color: transparent;
         }
-        .control-btn.end-call { background: var(--red); width: 65px; height: 65px; font-size: 1.6rem; box-shadow: 0 4px 15px rgba(255,68,68,0.4); }
+        .control-btn.end-call { background: var(--red); width: 60px; height: 60px; font-size: 1.5rem; box-shadow: 0 4px 15px rgba(255,68,68,0.4); }
         .control-btn:active { transform: scale(0.95); }
         
         .hidden { display: none !important; }
@@ -418,7 +429,8 @@
         /* --- MOBILE TOGGLE BUTTON --- */
         .toggle-sidebar-btn {
             position: absolute;
-            top: 15px; left: 15px;
+            top: max(15px, env(safe-area-inset-top)); 
+            left: 15px;
             z-index: 80;
             background: rgba(36, 37, 38, 0.8);
             color: white;
@@ -429,7 +441,7 @@
             backdrop-filter: blur(5px);
             font-size: 1.2rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            display: flex; /* Always flex, hidden by utility class */
+            display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
@@ -447,33 +459,35 @@
                 top: 0; left: 0;
                 transform: translateX(0);
                 z-index: 200;
+                box-shadow: 5px 0 15px rgba(0,0,0,0.5);
             }
             #sidebar.collapsed { 
                 transform: translateX(-100%); 
-                display: flex; /* Keep flex layout but hide via transform */
+                display: flex;
             }
             
             /* Video Stacking */
             #video-grid { flex-direction: column; }
             video { width: 100%; height: 50%; }
-            #localVideo { transform: scaleX(-1); border-right: none; border-bottom: 1px solid #222; }
+            #localVideo { border-right: none; border-bottom: 1px solid #222; }
             
             /* Chat adjustments for small screens */
             #chat-container {
                 width: 92%;
                 left: 4%;
                 right: 4%;
-                bottom: 100px; /* Clear the controls */
+                bottom: 100px;
             }
             
             /* Controls larger for thumbs */
             #controls-bar {
                 height: 100px;
-                padding-bottom: 20px; 
+                padding-bottom: calc(20px + env(safe-area-inset-bottom)); 
+                gap: 15px;
             }
             
-            .control-btn { width: 60px; height: 60px; }
-            .control-btn.end-call { width: 70px; height: 70px; }
+            .control-btn { width: 55px; height: 55px; }
+            .control-btn.end-call { width: 65px; height: 65px; }
 
             /* Placeholder text */
             #placeholder-text i { font-size: 2.5rem; }
@@ -499,7 +513,7 @@
             <button class="login-btn" onclick="loginAndStart()">Enter & Join Online</button>
             
             <div class="permission-note">
-                <i class="fas fa-lock"></i> Camera & Mic permission required for calls.
+                <i class="fas fa-lock"></i> Camera & Mic permission required.
             </div>
         </div>
     </div>
@@ -533,7 +547,8 @@
                 <i class="fas fa-address-book" style="opacity: 0.3;"></i>
                 <span>Open menu to select a user</span>
             </div>
-            <video id="localVideo" autoplay muted playsinline class="hidden"></video>
+            <!-- Added .mirrored class dynamically in JS for selfie cam -->
+            <video id="localVideo" autoplay muted playsinline class="hidden mirrored"></video>
             <video id="remoteVideo" autoplay playsinline class="hidden"></video>
         </div>
 
@@ -550,7 +565,8 @@
         <div id="controls-bar" class="hidden">
             <button class="control-btn" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
             <button class="control-btn end-call" onclick="endCall()"><i class="fas fa-phone-slash"></i></button>
-            <button class="control-btn" onclick="toggleCamera()"><i class="fas fa-video"></i></button>
+            <button class="control-btn" onclick="toggleCameraVideo()"><i class="fas fa-video"></i></button>
+            <button class="control-btn" onclick="switchCamera()"><i class="fas fa-sync-alt"></i></button>
         </div>
     </div>
 
@@ -593,13 +609,19 @@
         let dataConnection; 
         let incomingCallRequest = null;
         let audioContext = null; 
+        let wakeLock = null;
+        let currentFacingMode = 'user'; // 'user' (front) or 'environment' (back)
 
-        // Fix mobile viewport
+        // Fix mobile viewport & keyboard logic
         function setVh() {
-            let vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            // Use visualViewport if available for accurate height with keyboard
+            const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            document.documentElement.style.setProperty('--vh', `${height * 0.01}px`);
         }
         window.addEventListener('resize', setVh);
+        if(window.visualViewport) {
+            window.visualViewport.addEventListener('resize', setVh);
+        }
         setVh();
 
         // --- INIT ---
@@ -614,36 +636,79 @@
         // --- LOGIN & START ---
         function loginAndStart() {
             const nameInput = document.getElementById('login-name').value.trim();
-            
             if(nameInput.length < 2) { alert("Please enter your Name."); return; }
 
             myName = nameInput;
-            
-            // Save to local storage
             localStorage.setItem('messenger_my_name', myName);
             
-            // Ask for permissions
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-                .then(stream => {
-                    localStream = stream;
-                    
-                    // UI Updates
-                    document.getElementById('login-overlay').style.display = 'none';
-                    document.getElementById('my-name-display').innerText = myName;
-                    
-                    // Show sidebar on mobile initially so they can pick someone
-                    if(window.innerWidth <= 768) {
-                        document.getElementById('sidebar').classList.remove('collapsed');
-                        document.getElementById('mobile-menu-btn').classList.add('hidden'); // hidden while sidebar is open
-                    }
+            // Get Camera (Front default)
+            startCamera('user').then(() => {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('my-name-display').innerText = myName;
+                
+                if(window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.remove('collapsed');
+                    document.getElementById('mobile-menu-btn').classList.add('hidden');
+                }
+                initPeer();
+            });
+        }
 
-                    // Start PeerJS
-                    initPeer();
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("Camera/Mic Permission Denied. You cannot use this app without it.");
-                });
+        async function startCamera(facingMode) {
+            try {
+                // Stop existing tracks if any
+                if(localStream) {
+                    localStream.getTracks().forEach(t => t.stop());
+                }
+
+                const constraints = {
+                    video: { facingMode: facingMode },
+                    audio: true
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                localStream = stream;
+                
+                const vid = document.getElementById('localVideo');
+                vid.srcObject = stream;
+                
+                // Flip video element if using front camera
+                if(facingMode === 'user') {
+                    vid.classList.add('mirrored');
+                } else {
+                    vid.classList.remove('mirrored');
+                }
+
+                return stream;
+            } catch(err) {
+                console.error(err);
+                alert("Camera Error: " + err.message);
+                throw err;
+            }
+        }
+
+        // --- CAMERA SWITCHING ---
+        async function switchCamera() {
+            if (!localStream) return;
+
+            // Toggle mode
+            currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+            
+            try {
+                const newStream = await startCamera(currentFacingMode);
+                
+                // If currently in a call, replace the video track
+                if (currentCall && currentCall.peerConnection) {
+                    const videoTrack = newStream.getVideoTracks()[0];
+                    const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === videoTrack.kind);
+                    if (sender) {
+                        sender.replaceTrack(videoTrack);
+                    }
+                }
+            } catch(err) {
+                console.error("Failed to switch camera", err);
+                currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user'; // Revert
+            }
         }
 
         function initPeer() {
@@ -651,13 +716,9 @@
 
             peer.on('open', id => {
                 myPeerId = id;
-                console.log("My Peer ID:", id);
-                
-                // Add myself to the Public Directory
                 updateDirectory();
-                
-                // Listen for other users
                 initOnlineUsersListener();
+                initSwipeGestures(); // Start listening for swipes
             });
 
             peer.on('call', handleIncomingCall);
@@ -667,86 +728,53 @@
 
         function updateDirectory() {
             if(!myName || !myPeerId) return;
-            
             const userRef = db.ref('users/' + myPeerId);
-            userRef.set({
-                name: myName,
-                lastSeen: Date.now()
-            });
+            userRef.set({ name: myName, lastSeen: Date.now() });
             userRef.onDisconnect().remove();
         }
 
-        // --- DIRECTORY LISTENER ---
         function initOnlineUsersListener() {
             const listContainer = document.getElementById('online-list');
-            
             db.ref('users').on('value', snapshot => {
                 const users = snapshot.val();
                 listContainer.innerHTML = '';
-                
                 if(!users) {
                     listContainer.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No other users online.</div>';
                     return;
                 }
-
-                let count = 0;
-                // Loop through all users in DB
                 for (const [peerId, userData] of Object.entries(users)) {
                     if(peerId === myPeerId) continue;
-
-                    count++;
                     const el = document.createElement('div');
                     el.className = 'user-item';
                     el.onclick = () => initiateCall(peerId, userData.name);
-                    
                     el.innerHTML = `
-                        <div class="avatar">
-                            ${userData.name.charAt(0).toUpperCase()}
-                            <div class="status-dot"></div>
-                        </div>
-                        <div class="user-info">
-                            <div class="user-name">${userData.name}</div>
-                        </div>
+                        <div class="avatar">${userData.name.charAt(0).toUpperCase()}<div class="status-dot"></div></div>
+                        <div class="user-info"><div class="user-name">${userData.name}</div></div>
                         <div class="call-icon"><i class="fas fa-video"></i></div>
                     `;
                     listContainer.appendChild(el);
                 }
-
-                if(count === 0) {
-                     listContainer.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">No other users online right now.</div>';
-                }
             });
         }
 
-        // --- CALLING LOGIC ---
-
+        // --- CALL LOGIC ---
         async function initiateCall(destPeerId, destName) {
-            if(!localStream) {
-                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            }
-            document.getElementById('localVideo').srcObject = localStream;
-
+            if(!localStream) await startCamera(currentFacingMode);
+            
             const meta = { callerName: myName };
-
-            // 1. Text Connection
             const conn = peer.connect(destPeerId, { metadata: meta });
             setupDataConnection(conn);
 
-            // 2. Media Call
             const call = peer.call(destPeerId, localStream, { metadata: meta });
             handleCall(call);
-
             setupUIForCall();
+            requestWakeLock();
         }
 
         function handleIncomingCall(call) {
             if (currentCall) { call.close(); return; }
-            
             incomingCallRequest = call;
-            
-            // Read metadata
             const callerName = (call.metadata && call.metadata.callerName) ? call.metadata.callerName : "Unknown";
-            
             document.getElementById('caller-id-display').innerHTML = `<b>${callerName}</b>`;
             document.getElementById('modal-overlay').classList.remove('hidden');
             startRingtone();
@@ -755,15 +783,107 @@
         async function answerCall() {
             stopRingtone();
             document.getElementById('modal-overlay').classList.add('hidden');
-            
-            if(!localStream) {
-                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            }
-            document.getElementById('localVideo').srcObject = localStream;
+            if(!localStream) await startCamera(currentFacingMode);
             
             incomingCallRequest.answer(localStream);
             handleCall(incomingCallRequest);
             setupUIForCall();
+            requestWakeLock();
+        }
+
+        function handleCall(call) {
+            currentCall = call;
+            call.on('stream', remoteStream => {
+                const rv = document.getElementById('remoteVideo');
+                rv.srcObject = remoteStream;
+                rv.classList.remove('hidden');
+            });
+            call.on('close', resetUI);
+            call.on('error', resetUI);
+        }
+
+        function setupDataConnection(conn) {
+            dataConnection = conn;
+            conn.on('open', () => console.log("Chat open"));
+            conn.on('data', data => addMessageToUI(data, 'them'));
+        }
+
+        // --- WAKE LOCK ---
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+        }
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => { wakeLock = null; });
+            }
+        }
+
+        // --- SWIPE GESTURES ---
+        function initSwipeGestures() {
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const threshold = 75; // px swipe needed
+
+            document.body.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, {passive: true});
+
+            document.body.addEventListener('touchend', e => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleGesture();
+            }, {passive: true});
+
+            function handleGesture() {
+                const sb = document.getElementById('sidebar');
+                if (window.innerWidth > 768) return; // Only mobile
+
+                // Swipe Right (Open Sidebar)
+                if (touchEndX > touchStartX + threshold) {
+                    if (touchStartX < 50) { // Only if swiping from left edge
+                        sb.classList.remove('collapsed');
+                        document.getElementById('mobile-menu-btn').classList.add('hidden');
+                    }
+                }
+                
+                // Swipe Left (Close Sidebar)
+                if (touchEndX < touchStartX - threshold) {
+                    if (!sb.classList.contains('collapsed')) {
+                        toggleSidebar();
+                    }
+                }
+            }
+        }
+
+        // --- UI & UTILS ---
+        function setupUIForCall() {
+            document.getElementById('sidebar').classList.add('collapsed');
+            document.getElementById('mobile-menu-btn').classList.remove('hidden');
+            document.getElementById('placeholder-text').classList.add('hidden');
+            document.getElementById('localVideo').classList.remove('hidden');
+            document.getElementById('remoteVideo').classList.remove('hidden');
+            document.getElementById('controls-bar').classList.remove('hidden');
+            document.getElementById('chat-container').classList.remove('hidden');
+        }
+
+        function resetUI() {
+            currentCall = null;
+            dataConnection = null;
+            releaseWakeLock();
+            
+            document.getElementById('remoteVideo').srcObject = null;
+            document.getElementById('remoteVideo').classList.add('hidden');
+            document.getElementById('localVideo').classList.add('hidden');
+            document.getElementById('placeholder-text').classList.remove('hidden');
+            document.getElementById('controls-bar').classList.add('hidden');
+            document.getElementById('chat-container').classList.add('hidden');
+            document.getElementById('messages').innerHTML = '';
+            document.getElementById('mobile-menu-btn').classList.remove('hidden');
         }
 
         function rejectCall() {
@@ -778,56 +898,6 @@
             resetUI();
         }
 
-        function handleCall(call) {
-            currentCall = call;
-            
-            call.on('stream', remoteStream => {
-                const rv = document.getElementById('remoteVideo');
-                rv.srcObject = remoteStream;
-                rv.classList.remove('hidden');
-            });
-
-            call.on('close', resetUI);
-            call.on('error', resetUI);
-        }
-
-        function setupDataConnection(conn) {
-            dataConnection = conn;
-            conn.on('open', () => console.log("Chat open"));
-            conn.on('data', data => addMessageToUI(data, 'them'));
-        }
-
-        // --- UI & UTILS ---
-
-        function setupUIForCall() {
-            // Mobile: Close the sidebar drawer
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('mobile-menu-btn').classList.remove('hidden');
-            
-            document.getElementById('placeholder-text').classList.add('hidden');
-            document.getElementById('localVideo').classList.remove('hidden');
-            document.getElementById('remoteVideo').classList.remove('hidden');
-            document.getElementById('controls-bar').classList.remove('hidden');
-            document.getElementById('chat-container').classList.remove('hidden');
-        }
-
-        function resetUI() {
-            currentCall = null;
-            dataConnection = null;
-            
-            document.getElementById('remoteVideo').srcObject = null;
-            document.getElementById('remoteVideo').classList.add('hidden');
-            document.getElementById('localVideo').classList.add('hidden');
-            document.getElementById('placeholder-text').classList.remove('hidden');
-            document.getElementById('controls-bar').classList.add('hidden');
-            document.getElementById('chat-container').classList.add('hidden');
-            document.getElementById('messages').innerHTML = '';
-            
-            // Mobile: Stay on video screen (with placeholder) but show menu button
-            // If user wants to call someone else, they click menu
-            document.getElementById('mobile-menu-btn').classList.remove('hidden');
-        }
-
         function handleEnter(e) { if(e.key === 'Enter') sendMsg(); }
 
         function sendMsg() {
@@ -837,7 +907,6 @@
             dataConnection.send(text);
             addMessageToUI(text, 'me');
             input.value = '';
-            // Focus input again for quick typing
             input.focus();
         }
 
@@ -854,10 +923,8 @@
             const sb = document.getElementById('sidebar');
             const btn = document.getElementById('mobile-menu-btn');
             
-            // If collapsed (hidden on mobile), show it
             if(sb.classList.contains('collapsed')) {
                 sb.classList.remove('collapsed');
-                // On mobile, hide menu button when sidebar is open (it covers screen)
                 if(window.innerWidth <= 768) btn.classList.add('hidden');
             } else {
                 sb.classList.add('collapsed');
@@ -865,7 +932,6 @@
             }
         }
 
-        // Close sidebar if clicking main area on mobile
         document.getElementById('video-grid').addEventListener('click', () => {
             if(window.innerWidth <= 768) {
                 const sb = document.getElementById('sidebar');
@@ -882,7 +948,7 @@
             }
         }
         
-        function toggleCamera() {
+        function toggleCameraVideo() {
             if(localStream) {
                 const track = localStream.getVideoTracks()[0];
                 track.enabled = !track.enabled;
@@ -893,41 +959,31 @@
             if (!window.AudioContext) return;
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
                 const playBeep = () => {
                     if(!audioContext) return;
                     const osc = audioContext.createOscillator();
                     const gain = audioContext.createGain();
-                    
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(400, audioContext.currentTime);
                     osc.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 0.1);
-                    
                     gain.gain.setValueAtTime(0, audioContext.currentTime);
                     gain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
                     gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.6);
-                    
                     osc.connect(gain);
                     gain.connect(audioContext.destination);
-                    
                     osc.start();
                     osc.stop(audioContext.currentTime + 0.6);
                 };
-
                 playBeep();
                 const intervalId = setInterval(() => {
                     if(audioContext && audioContext.state === 'running') playBeep();
                     else clearInterval(intervalId);
                 }, 1500);
-
             } catch(e) { console.error("Audio error", e); }
         }
 
         function stopRingtone() {
-            if(audioContext) {
-                audioContext.close();
-                audioContext = null;
-            }
+            if(audioContext) { audioContext.close(); audioContext = null; }
         }
     </script>
 </body>
