@@ -45,7 +45,7 @@
             overflow: hidden;
         }
 
-        /* CHAT HEADER (Visible when chat open) */
+        /* CHAT HEADER */
         #chat-header {
             height: 60px;
             background: var(--surface);
@@ -55,39 +55,37 @@
             padding: 0 15px;
             justify-content: space-between;
             z-index: 60;
+            position: relative;
         }
         
         #chat-header-info { display: flex; align-items: center; gap: 10px; }
         #chat-partner-name { font-weight: bold; font-size: 1.1rem; }
         
         .header-btn {
-            background: transparent; border: none; color: var(--primary);
-            font-size: 1.4rem; cursor: pointer; padding: 10px;
-            border-radius: 50%; transition: background 0.2s;
+            background: rgba(0, 132, 255, 0.1); border: none; color: var(--primary);
+            font-size: 1.2rem; cursor: pointer; width: 40px; height: 40px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
         }
-        .header-btn:hover { background: rgba(255,255,255,0.1); }
+        .header-btn:hover { background: var(--primary); color: white; }
 
-        /* VIDEO GRID (Hidden by default, overlays chat when active) */
+        /* VIDEO GRID */
         #video-grid {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             background: #000;
-            z-index: 100; /* Above chat */
-            display: none; /* Hidden by default */
+            z-index: 100;
+            display: none;
         }
         
         body.call-active #video-grid { display: block; }
 
         /* VIDEOS */
-        #localVideo {
-            width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;
-        }
-        #remoteVideo {
-            width: 100%; height: 100%; object-fit: cover;
-        }
+        #localVideo { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
 
-        /* PIP Mode for Local Video during Call */
+        /* PIP Mode */
         body.call-active #localVideo {
             position: absolute;
             width: 110px; height: 160px;
@@ -105,23 +103,22 @@
 
         .mirrored { transform: scaleX(-1) !important; }
 
-        /* --- CHAT CONTAINER (Now Main View) --- */
+        /* --- CHAT CONTAINER --- */
         #chat-container {
             flex: 1;
-            display: none; /* Hidden until chat selected */
+            display: none;
             flex-direction: column;
             background: var(--bg);
             position: relative;
             z-index: 1;
         }
         
-        /* When chat is open */
         body.chat-open #chat-container { display: flex; }
         body.chat-open #chat-header { display: flex; }
         body.chat-open #placeholder-text { display: none; }
 
         #messages {
-            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
             padding: 15px;
         }
         
@@ -147,7 +144,7 @@
         }
         #msg-input { 
             background: var(--gray); border: none; color: white; flex: 1; outline: none; font-size: 16px; 
-            padding: 10px 15px; border-radius: 20px;
+            padding: 12px 15px; border-radius: 20px;
         }
 
         /* --- PLACEHOLDER --- */
@@ -157,12 +154,12 @@
             color: #777; gap: 15px;
         }
 
-        /* --- CONTROLS BAR (Only visible during call) --- */
+        /* --- CONTROLS BAR --- */
         #controls-bar {
             height: 90px;
             background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
             position: absolute; bottom: 0; left: 0; width: 100%;
-            display: none; /* Hidden by default */
+            display: none;
             align-items: center; justify-content: center; gap: 25px;
             z-index: 150; padding-bottom: env(safe-area-inset-bottom);
         }
@@ -176,7 +173,7 @@
         }
         .control-btn.end-call { background: var(--red); width: 60px; height: 60px; }
 
-        /* --- LOGIN & SIDEBAR (Same as before) --- */
+        /* --- LOGIN & SIDEBAR --- */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg); z-index: 2000; display: flex;
@@ -216,13 +213,25 @@
         .btn-accept { background: var(--green); animation: bounce 1s infinite; }
         .btn-decline { background: var(--red); }
 
-        /* Mobile Responsive */
-        .toggle-sidebar-btn { position: absolute; top: max(15px, env(safe-area-inset-top)); left: 15px; z-index: 80; background: rgba(36, 37, 38, 0.8); color: white; border: none; width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        /* --- MOBILE SPECIFIC STYLES --- */
+        .toggle-sidebar-btn { 
+            position: absolute; top: 12px; left: 10px; 
+            z-index: 80; background: transparent; 
+            color: var(--text); border: none; width: 40px; height: 40px; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-size: 1.2rem; cursor: pointer;
+        }
         
         @media (max-width: 768px) {
             body { flex-direction: column; }
+            /* Sidebar covers entire screen on mobile (List View) */
             #sidebar { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transform: translateX(0); z-index: 200; }
+            /* When collapsed, it slides left, revealing the chat behind it */
             #sidebar.collapsed { transform: translateX(-100%); display: flex; }
+            
+            /* Header adjustments for mobile back button */
+            #chat-header { padding-left: 50px; }
+            .toggle-sidebar-btn { top: 10px; background: rgba(0,0,0,0.2); }
         }
 
         .hidden { display: none !important; }
@@ -254,7 +263,7 @@
         </div>
     </div>
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR (CONTACT LIST) -->
     <div id="sidebar">
         <div class="header">
             <div class="my-profile">
@@ -270,13 +279,14 @@
         </div>
     </div>
 
-    <!-- MAIN AREA -->
+    <!-- MAIN AREA (CHAT & VIDEO) -->
     <div id="main-area">
+        <!-- Back Button (Only visible on mobile when chat is open) -->
         <button class="toggle-sidebar-btn hidden" id="mobile-menu-btn" onclick="toggleSidebar()">
-            <i class="fas fa-bars"></i>
+            <i class="fas fa-arrow-left"></i>
         </button>
 
-        <!-- Chat Header (Visible when chat selected) -->
+        <!-- Chat Header -->
         <div id="chat-header">
             <div id="chat-header-info">
                 <div class="avatar" style="width:35px; height:35px; font-size:1rem;"><i class="fas fa-user"></i></div>
@@ -350,7 +360,7 @@
         let myPeerId;
         let myName = "";
         let myUsername = "";
-        let currentChatPartner = null; // { id, name, username }
+        let currentChatPartner = null; 
         let localStream;
         let currentCall;
         let dataConnection; 
@@ -366,7 +376,6 @@
         }
         window.addEventListener('resize', setVh); setVh();
 
-        // Firebase
         try { firebase.initializeApp(firebaseConfig); } catch(e) {}
         const db = firebase.database();
 
@@ -424,9 +433,7 @@
                 updateDirectory();
                 initOnlineUsersListener();
             });
-            // Handle Incoming Video Call
             peer.on('call', handleIncomingCall);
-            // Handle Incoming Data (Chat)
             peer.on('connection', conn => {
                 setupDataConnection(conn);
             });
@@ -455,7 +462,7 @@
             });
         }
 
-        // --- CHAT LOGIC (MESSENGER STYLE) ---
+        // --- CHAT LOGIC (MOBILE FIRST) ---
         function openChat(partnerPeerId, partnerName, partnerUsername) {
             currentChatPartner = { id: partnerPeerId, name: partnerName, username: partnerUsername };
             
@@ -463,24 +470,40 @@
             document.body.classList.add('chat-open');
             document.getElementById('chat-partner-name').innerText = partnerName;
             
-            // Mobile: Close sidebar
+            // Mobile: Close list (Sidebar), Show Chat, Show Back Button
             if(window.innerWidth <= 768) {
                 document.getElementById('sidebar').classList.add('collapsed');
-                document.getElementById('mobile-menu-btn').classList.remove('hidden');
+                const btn = document.getElementById('mobile-menu-btn');
+                btn.classList.remove('hidden');
             }
 
             // 2. Load History
             loadChatHistory(partnerUsername);
 
-            // 3. Establish Data Connection immediately for text
+            // 3. Connect
             if(dataConnection) dataConnection.close();
             dataConnection = peer.connect(partnerPeerId, { metadata: { callerName: myName, callerUsername: myUsername } });
             setupDataConnection(dataConnection);
         }
 
+        // --- BACK NAVIGATION ---
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const btn = document.getElementById('mobile-menu-btn');
+            
+            // If we are currently in Chat view (sidebar is collapsed), Go Back to List
+            if(sb.classList.contains('collapsed')) {
+                sb.classList.remove('collapsed'); // Show Sidebar
+                if(window.innerWidth <= 768) btn.classList.add('hidden'); // Hide Back button
+            } else {
+                // Should not happen via this button in this logic, but effectively goes to chat
+                sb.classList.add('collapsed');
+                btn.classList.remove('hidden');
+            }
+        }
+
         // --- LOCAL STORAGE ---
         function getChatKey(partnerUser) {
-            // Sort keys so chat_A_B is same as chat_B_A
             const keys = [myUsername, partnerUser].sort();
             return 'chat_' + keys[0] + '_' + keys[1];
         }
@@ -488,10 +511,8 @@
         function loadChatHistory(partnerUser) {
             const msgsDiv = document.getElementById('messages');
             msgsDiv.innerHTML = '';
-            
             const key = getChatKey(partnerUser);
             const history = JSON.parse(localStorage.getItem(key) || '[]');
-            
             history.forEach(msg => {
                 renderMessage(msg, msg.sender === myUsername ? 'me' : 'them');
             });
@@ -504,25 +525,17 @@
             localStorage.setItem(key, JSON.stringify(history));
         }
 
-        // --- SENDING MESSAGES ---
+        // --- MESSAGING ---
         function sendMsg() {
             const input = document.getElementById('msg-input');
             const text = input.value.trim();
             if(!text || !currentChatPartner) return;
 
             const msgData = {
-                type: 'text',
-                content: text,
-                sender: myUsername,
-                timestamp: Date.now()
+                type: 'text', content: text, sender: myUsername, timestamp: Date.now()
             };
 
-            // Send via PeerJS
-            if(dataConnection && dataConnection.open) {
-                dataConnection.send(msgData);
-            }
-
-            // Save & Render Local
+            if(dataConnection && dataConnection.open) dataConnection.send(msgData);
             saveMessage(msgData, currentChatPartner.username);
             renderMessage(msgData, 'me');
             input.value = '';
@@ -534,12 +547,8 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const msgData = {
-                    type: 'file',
-                    fileName: file.name,
-                    fileType: file.type,
-                    fileData: e.target.result, // ArrayBuffer
-                    sender: myUsername,
-                    timestamp: Date.now()
+                    type: 'file', fileName: file.name, fileType: file.type,
+                    fileData: e.target.result, sender: myUsername, timestamp: Date.now()
                 };
                 if(dataConnection && dataConnection.open) dataConnection.send(msgData);
                 saveMessage(msgData, currentChatPartner.username);
@@ -552,17 +561,10 @@
         function setupDataConnection(conn) {
             conn.on('open', () => console.log("Chat connected"));
             conn.on('data', data => {
-                // Determine who sent this. If it comes from 'conn', we look at metadata or the data itself
                 const senderUser = data.sender || (conn.metadata ? conn.metadata.callerUsername : 'unknown');
-                
-                // Save incoming message to local storage regardless of who we are looking at
                 saveMessage(data, senderUser);
-
-                // If we are currently looking at this chat, render it
                 if(currentChatPartner && currentChatPartner.username === senderUser) {
                     renderMessage(data, 'them');
-                } else {
-                    // Optional: Show notification badge here
                 }
             });
         }
@@ -573,12 +575,11 @@
             const container = document.getElementById('messages');
 
             if(data.type === 'file') {
-                const blob = new Blob([data.fileData], {type: data.fileType}); // Reconstruct Blob from buffer/stored object
+                const blob = new Blob([data.fileData], {type: data.fileType});
                 const url = URL.createObjectURL(blob);
                 if(data.fileType.startsWith('image/')) div.innerHTML = `<img src="${url}">`;
                 else if(data.fileType.startsWith('video/')) div.innerHTML = `<video src="${url}" controls></video>`;
                 else div.innerHTML = `<i class="fas fa-file"></i> ${data.fileName}`;
-                
                 div.innerHTML += `<a href="${url}" download="${data.fileName}" class="download-link"><i class="fas fa-download"></i> Download</a>`;
             } else {
                 div.innerText = data.content;
@@ -590,11 +591,7 @@
         // --- VIDEO CALLING ---
         async function startVideoCall() {
             if(!currentChatPartner) return;
-            
-            // 1. Get Media
             await startCamera(currentFacingMode);
-            
-            // 2. Call
             const call = peer.call(currentChatPartner.id, localStream, { 
                 metadata: { callerName: myName, callerUsername: myUsername } 
             });
@@ -658,7 +655,7 @@
                 const vid = document.getElementById('localVideo');
                 vid.srcObject = stream;
                 if(mode==='user') vid.classList.add('mirrored'); else vid.classList.remove('mirrored');
-            } catch(e) { alert("Camera error"); }
+            } catch(e) { alert("Camera error or permission denied."); }
         }
 
         async function switchCamera() {
@@ -672,24 +669,12 @@
             }
         }
 
-        function toggleSidebar() {
-            const sb = document.getElementById('sidebar');
-            const btn = document.getElementById('mobile-menu-btn');
-            if(sb.classList.contains('collapsed')) {
-                sb.classList.remove('collapsed');
-                if(window.innerWidth <= 768) btn.classList.add('hidden');
-            } else {
-                sb.classList.add('collapsed');
-                btn.classList.remove('hidden');
-            }
-        }
-
         function toggleMute() { if(localStream) localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; }
         function toggleCameraVideo() { if(localStream) localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; }
         function handleEnter(e) { if(e.key === 'Enter') sendMsg(); }
         async function requestWakeLock() { if('wakeLock' in navigator) try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
         function releaseWakeLock() { if(wakeLock) wakeLock.release().then(()=>wakeLock=null); }
-        function startRingtone() { /* Simple beep logic from previous step if needed, omitted for brevity but audioContext logic goes here */ }
+        function startRingtone() { /* Audio context logic */ }
         function stopRingtone() { if(audioContext) audioContext.close(); }
     </script>
 </body>
